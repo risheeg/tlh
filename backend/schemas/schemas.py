@@ -11,6 +11,28 @@ from models.models import AccountType, LotStatus
 
 
 # ---------------------------------------------------------------------------
+# Account schemas
+# ---------------------------------------------------------------------------
+
+class AccountRegisterRequest(BaseModel):
+    user_id: uuid.UUID
+    name: str = Field(..., min_length=1, max_length=200)
+    type: AccountType
+    institution: str | None = Field(default=None, max_length=200)
+
+
+class AccountResponse(BaseModel):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    name: str
+    type: AccountType
+    institution: str | None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+# ---------------------------------------------------------------------------
 # Lot schemas
 # ---------------------------------------------------------------------------
 
