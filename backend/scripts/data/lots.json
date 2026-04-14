@@ -1,0 +1,25 @@
+{
+  "user_id": "45a10eec-1398-483e-b7cd-be90fbd2c77c",
+  "lots": [
+    {
+      "account_id": "a8d3a45f-b38f-4d4d-908d-91cf9acd7460",
+      "ticker": "AAPL",
+      "quantity": "10.0",
+      "original_purchase_price": "200.00",
+      "current_adjusted_basis": "150.00",
+      "purchase_date": "2025-11-15",
+      "status": "active",
+      "external_ref_id": "seed-aapl-001"
+    },
+    {
+      "account_id": "a8d3a45f-b38f-4d4d-908d-91cf9acd7460",
+      "ticker": "MSFT",
+      "quantity": "5.0",
+      "original_purchase_price": "420.00",
+      "current_adjusted_basis": "390.00",
+      "purchase_date": "2026-01-10",
+      "status": "active",
+      "external_ref_id": "seed-msft-001"
+    }
+  ]
+}
