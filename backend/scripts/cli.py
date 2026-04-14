@@ -343,6 +343,7 @@ def cmd_positions_upload(args: argparse.Namespace) -> None:
         now = datetime.now(timezone.utc)
         if existing:
             existing.quantity = args.quantity
+            existing.cost_basis = args.cost_basis
             existing.last_updated = now
             action = "updated"
             position_id = str(existing.id)
@@ -353,6 +354,7 @@ def cmd_positions_upload(args: argparse.Namespace) -> None:
                 account_id=account_id,
                 ticker=ticker,
                 quantity=args.quantity,
+                cost_basis=args.cost_basis,
                 last_updated=now,
             )
             db.add(position)
@@ -368,6 +370,8 @@ def cmd_positions_upload(args: argparse.Namespace) -> None:
     print(f"  position_id: {position_id}")
     print(f"  ticker     : {ticker}")
     print(f"  quantity   : {args.quantity}")
+    if args.cost_basis is not None:
+        print(f"  cost_basis : {args.cost_basis}")
     print(f"  account_id : {account_id}")
 
 
@@ -520,6 +524,8 @@ def build_parser() -> argparse.ArgumentParser:
                               help="Ticker symbol (e.g. VTSAX)")
     upload_pos_p.add_argument("--quantity", required=True, type=float, metavar="QTY",
                               help="Total quantity / shares held")
+    upload_pos_p.add_argument("--cost-basis", default=None, type=float, metavar="BASIS",
+                              help="Aggregated cost basis in dollars (optional)")
     upload_pos_p.set_defaults(func=cmd_positions_upload)
 
     return parser
