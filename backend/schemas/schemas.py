@@ -84,6 +84,7 @@ class AggregatePositionCreate(BaseModel):
     account_id: uuid.UUID
     ticker: str = Field(..., min_length=1, max_length=10)
     quantity: Decimal = Field(..., gt=0, decimal_places=8)
+    cost_basis: Decimal | None = Field(default=None, gt=0, decimal_places=2)
 
 
 class AggregatePositionUploadRequest(BaseModel):
@@ -98,6 +99,7 @@ class AggregatePositionResponse(BaseModel):
     account_id: uuid.UUID
     ticker: str
     quantity: Decimal
+    cost_basis: Decimal | None
     last_updated: datetime
 
     model_config = {"from_attributes": True}
@@ -106,3 +108,13 @@ class AggregatePositionResponse(BaseModel):
 class AggregatePositionUploadResponse(BaseModel):
     upserted: int
     positions: list[AggregatePositionResponse]
+
+
+# ---------------------------------------------------------------------------
+# Aggregated positions (lots + aggregate positions)
+# ---------------------------------------------------------------------------
+
+class AggregatedPositionResponse(BaseModel):
+    ticker: str
+    quantity: Decimal
+    cost_basis: Decimal | None = None

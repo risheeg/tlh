@@ -145,6 +145,7 @@ def upload_positions(
 
         if existing:
             existing.quantity = pos_data.quantity
+            existing.cost_basis = pos_data.cost_basis
             existing.last_updated = datetime.now(timezone.utc)
             upserted_positions.append(existing)
         else:
@@ -153,6 +154,7 @@ def upload_positions(
                 account_id=pos_data.account_id,
                 ticker=pos_data.ticker.upper(),
                 quantity=pos_data.quantity,
+                cost_basis=pos_data.cost_basis,
                 last_updated=datetime.now(timezone.utc),
             )
             db.add(position)

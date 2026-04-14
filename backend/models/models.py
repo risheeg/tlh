@@ -124,6 +124,7 @@ class AggregatePosition(Base):
     )
     ticker: Mapped[str] = mapped_column(String, index=True, nullable=False)
     quantity: Mapped[float] = mapped_column(Numeric(18, 8), nullable=False)
+    cost_basis: Mapped[float | None] = mapped_column(Numeric(18, 2), nullable=True)
     last_updated: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
     )
