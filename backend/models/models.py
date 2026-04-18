@@ -138,6 +138,7 @@ class StockPrice(Base):
     __tablename__ = "stock_prices"
 
     ticker: Mapped[str] = mapped_column(String, primary_key=True)
+    exchange: Mapped[str | None] = mapped_column(String, nullable=True)
     price: Mapped[float] = mapped_column(Numeric(18, 2), nullable=False)
     last_updated: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
