@@ -31,6 +31,10 @@ Positions (aggregate)
       --ticker VTSAX \\
       --quantity 42.5
 
+Prices
+------
+  uv run python scripts/cli.py prices sync
+
 Run from the backend/ directory:
   uv run python scripts/cli.py <command> [options]
 """
@@ -376,6 +380,30 @@ def cmd_positions_upload(args: argparse.Namespace) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Subcommand: prices
+# ---------------------------------------------------------------------------
+
+def cmd_prices_sync(args: argparse.Namespace) -> None:  # noqa: ARG001
+    """Trigger the stock price synchronization job."""
+    import sys as _sys
+    _sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    from services.prices import sync_stock_prices
+
+    db = _get_db_session()
+    try:
+        print("Starting stock price synchronization...")
+        result = sync_stock_prices(db)
+        print("✓ Synchronization complete.")
+        print(f"  Total tickers requested: {result['total_tickers_requested']}")
+        print(f"  Tickers added to sheet : {result['added_to_sheet']}")
+        print(f"  Tickers updated in DB  : {result['updated_in_db']}")
+    except Exception as e:
+        sys.exit(f"Error during synchronization: {e}")
+    finally:
+        db.close()
+
+
+# ---------------------------------------------------------------------------
 # Subcommand: users  (create a user directly in the DB)
 # ---------------------------------------------------------------------------
 
@@ -527,6 +555,14 @@ def build_parser() -> argparse.ArgumentParser:
     upload_pos_p.add_argument("--cost-basis", default=None, type=float, metavar="BASIS",
                               help="Aggregated cost basis in dollars (optional)")
     upload_pos_p.set_defaults(func=cmd_positions_upload)
+
+    # ---- prices -------------------------------------------------------------
+    prices_p = sub.add_parser("prices", help="Stock price management")
+    prices_sub = prices_p.add_subparsers(dest="action", metavar="<action>")
+    prices_sub.required = True
+
+    sync_prices_p = prices_sub.add_parser("sync", help="Trigger stock price synchronization")
+    sync_prices_p.set_defaults(func=cmd_prices_sync)
 
     return parser
 
