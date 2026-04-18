@@ -5,7 +5,7 @@ from fastapi import FastAPI
 
 from db.constraints import ensure_db_constraints
 from db.session import Base, engine, SessionLocal
-from routers import accounts, ingest, prices
+from routers import accounts, ingest, prices, portfolio
 from services.prices import sync_stock_prices
 from apscheduler.schedulers.background import BackgroundScheduler
 
@@ -36,6 +36,7 @@ scheduler.start()
 app.include_router(ingest.router)
 app.include_router(accounts.router)
 app.include_router(prices.router)
+app.include_router(portfolio.router)
 
 
 @app.get("/health", tags=["health"])
