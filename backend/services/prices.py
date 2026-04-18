@@ -21,7 +21,7 @@ def sync_stock_prices(db: Session):
         return {"added_to_sheet": 0, "updated_in_db": 0}
 
     # 2. Sync to sheet
-    added_to_sheet = sheets_service.sync_tickers(list(all_tickers))
+    added_to_sheet, warnings = sheets_service.sync_tickers(db, list(all_tickers))
 
     # 3. Fetch from sheet
     prices = sheets_service.fetch_prices()
@@ -47,5 +47,6 @@ def sync_stock_prices(db: Session):
     return {
         "added_to_sheet": added_to_sheet,
         "updated_in_db": updated_count,
-        "total_tickers_requested": len(all_tickers)
+        "total_tickers_requested": len(all_tickers),
+        "warnings": warnings
     }
