@@ -131,3 +131,14 @@ class AggregatePosition(Base):
 
     user: Mapped["User"] = relationship("User", back_populates="aggregate_positions")
     account: Mapped["Account"] = relationship("Account", back_populates="aggregate_positions")
+
+
+class StockPrice(Base):
+    """Stores the latest price for a stock ticker."""
+    __tablename__ = "stock_prices"
+
+    ticker: Mapped[str] = mapped_column(String, primary_key=True)
+    price: Mapped[float] = mapped_column(Numeric(18, 2), nullable=False)
+    last_updated: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
+    )
