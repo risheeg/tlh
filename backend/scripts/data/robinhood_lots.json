@@ -1,0 +1,365 @@
+{
+  "user_id": "45a10eec-1398-483e-b7cd-be90fbd2c77c",
+  "lots": [
+    {
+      "account_id": "15a0fdf4-f2b6-4604-b4e3-52de2aa8aa5b",
+      "ticker": "SPYM",
+      "quantity": "38.92163",
+      "original_purchase_price": "58.73",
+      "current_adjusted_basis": "58.73",
+      "purchase_date": "2025-04-09",
+      "status": "active",
+      "external_ref_id": "robinhood-lot-spym-1"
+    },
+    {
+      "account_id": "15a0fdf4-f2b6-4604-b4e3-52de2aa8aa5b",
+      "ticker": "SPYM",
+      "quantity": "651.48813",
+      "original_purchase_price": "61.11",
+      "current_adjusted_basis": "61.11",
+      "purchase_date": "2025-04-04",
+      "status": "active",
+      "external_ref_id": "robinhood-lot-spym-2"
+    },
+    {
+      "account_id": "15a0fdf4-f2b6-4604-b4e3-52de2aa8aa5b",
+      "ticker": "SPYM",
+      "quantity": "94.59931",
+      "original_purchase_price": "61.27",
+      "current_adjusted_basis": "61.27",
+      "purchase_date": "2025-04-04",
+      "status": "active",
+      "external_ref_id": "robinhood-lot-spym-3"
+    },
+    {
+      "account_id": "15a0fdf4-f2b6-4604-b4e3-52de2aa8aa5b",
+      "ticker": "SPYM",
+      "quantity": "1.5144",
+      "original_purchase_price": "60.59",
+      "current_adjusted_basis": "60.59",
+      "purchase_date": "2025-04-04",
+      "status": "active",
+      "external_ref_id": "robinhood-lot-spym-4"
+    },
+    {
+      "account_id": "15a0fdf4-f2b6-4604-b4e3-52de2aa8aa5b",
+      "ticker": "SPYM",
+      "quantity": "0.375",
+      "original_purchase_price": "63.76",
+      "current_adjusted_basis": "63.76",
+      "purchase_date": "2025-04-03",
+      "status": "active",
+      "external_ref_id": "robinhood-lot-spym-5"
+    },
+    {
+      "account_id": "15a0fdf4-f2b6-4604-b4e3-52de2aa8aa5b",
+      "ticker": "SPYM",
+      "quantity": "0.227956",
+      "original_purchase_price": "65.50",
+      "current_adjusted_basis": "65.50",
+      "purchase_date": "2025-03-31",
+      "status": "active",
+      "external_ref_id": "robinhood-lot-spym-6"
+    },
+    {
+      "account_id": "15a0fdf4-f2b6-4604-b4e3-52de2aa8aa5b",
+      "ticker": "SPYM",
+      "quantity": "0.25272",
+      "original_purchase_price": "67.31",
+      "current_adjusted_basis": "67.31",
+      "purchase_date": "2025-03-26",
+      "status": "active",
+      "external_ref_id": "robinhood-lot-spym-7"
+    },
+    {
+      "account_id": "15a0fdf4-f2b6-4604-b4e3-52de2aa8aa5b",
+      "ticker": "VTI",
+      "quantity": "0.084601",
+      "original_purchase_price": "270.09",
+      "current_adjusted_basis": "270.09",
+      "purchase_date": "2024-07-03",
+      "status": "active",
+      "external_ref_id": "robinhood-lot-vti-1"
+    },
+    {
+      "account_id": "15a0fdf4-f2b6-4604-b4e3-52de2aa8aa5b",
+      "ticker": "VTI",
+      "quantity": "0.064",
+      "original_purchase_price": "260.31",
+      "current_adjusted_basis": "260.31",
+      "purchase_date": "2024-03-26",
+      "status": "active",
+      "external_ref_id": "robinhood-lot-vti-2"
+    },
+    {
+      "account_id": "15a0fdf4-f2b6-4604-b4e3-52de2aa8aa5b",
+      "ticker": "VTI",
+      "quantity": "0.077",
+      "original_purchase_price": "237.27",
+      "current_adjusted_basis": "237.27",
+      "purchase_date": "2023-12-26",
+      "status": "active",
+      "external_ref_id": "robinhood-lot-vti-3"
+    },
+    {
+      "account_id": "15a0fdf4-f2b6-4604-b4e3-52de2aa8aa5b",
+      "ticker": "VTI",
+      "quantity": "9.859",
+      "original_purchase_price": "218.48",
+      "current_adjusted_basis": "218.48",
+      "purchase_date": "2023-08-17",
+      "status": "active",
+      "external_ref_id": "robinhood-lot-vti-4"
+    },
+    {
+      "account_id": "15a0fdf4-f2b6-4604-b4e3-52de2aa8aa5b",
+      "ticker": "VTI",
+      "quantity": "14.0",
+      "original_purchase_price": "220.12",
+      "current_adjusted_basis": "220.12",
+      "purchase_date": "2023-08-16",
+      "status": "active",
+      "external_ref_id": "robinhood-lot-vti-5"
+    },
+    {
+      "account_id": "15a0fdf4-f2b6-4604-b4e3-52de2aa8aa5b",
+      "ticker": "VXUS",
+      "quantity": "0.376969",
+      "original_purchase_price": "64.09",
+      "current_adjusted_basis": "64.09",
+      "purchase_date": "2024-09-25",
+      "status": "active",
+      "external_ref_id": "robinhood-lot-vxus-1"
+    },
+    {
+      "account_id": "15a0fdf4-f2b6-4604-b4e3-52de2aa8aa5b",
+      "ticker": "VXUS",
+      "quantity": "0.707398",
+      "original_purchase_price": "60.15",
+      "current_adjusted_basis": "60.15",
+      "purchase_date": "2024-06-26",
+      "status": "active",
+      "external_ref_id": "robinhood-lot-vxus-2"
+    },
+    {
+      "account_id": "15a0fdf4-f2b6-4604-b4e3-52de2aa8aa5b",
+      "ticker": "VXUS",
+      "quantity": "0.252",
+      "original_purchase_price": "59.64",
+      "current_adjusted_basis": "59.64",
+      "purchase_date": "2024-03-19",
+      "status": "active",
+      "external_ref_id": "robinhood-lot-vxus-3"
+    },
+    {
+      "account_id": "15a0fdf4-f2b6-4604-b4e3-52de2aa8aa5b",
+      "ticker": "VXUS",
+      "quantity": "87.748",
+      "original_purchase_price": "56.98",
+      "current_adjusted_basis": "56.98",
+      "purchase_date": "2024-01-05",
+      "status": "active",
+      "external_ref_id": "robinhood-lot-vxus-4"
+    },
+    {
+      "account_id": "15a0fdf4-f2b6-4604-b4e3-52de2aa8aa5b",
+      "ticker": "BBUS",
+      "quantity": "0.02468",
+      "original_purchase_price": "121.56",
+      "current_adjusted_basis": "121.56",
+      "purchase_date": "2026-04-08",
+      "status": "active",
+      "external_ref_id": "robinhood-lot-bbus-1"
+    },
+    {
+      "account_id": "15a0fdf4-f2b6-4604-b4e3-52de2aa8aa5b",
+      "ticker": "BBUS",
+      "quantity": "0.324873",
+      "original_purchase_price": "118.20",
+      "current_adjusted_basis": "118.20",
+      "purchase_date": "2026-04-06",
+      "status": "active",
+      "external_ref_id": "robinhood-lot-bbus-2"
+    },
+    {
+      "account_id": "15a0fdf4-f2b6-4604-b4e3-52de2aa8aa5b",
+      "ticker": "BBUS",
+      "quantity": "0.06216",
+      "original_purchase_price": "115.03",
+      "current_adjusted_basis": "115.03",
+      "purchase_date": "2026-03-27",
+      "status": "active",
+      "external_ref_id": "robinhood-lot-bbus-3"
+    },
+    {
+      "account_id": "15a0fdf4-f2b6-4604-b4e3-52de2aa8aa5b",
+      "ticker": "BBUS",
+      "quantity": "0.14476",
+      "original_purchase_price": "102.03",
+      "current_adjusted_basis": "102.03",
+      "purchase_date": "2025-05-05",
+      "status": "active",
+      "external_ref_id": "robinhood-lot-bbus-4"
+    },
+    {
+      "account_id": "15a0fdf4-f2b6-4604-b4e3-52de2aa8aa5b",
+      "ticker": "BKLC",
+      "quantity": "1.196102",
+      "original_purchase_price": "127.77",
+      "current_adjusted_basis": "127.77",
+      "purchase_date": "2026-03-18",
+      "status": "active",
+      "external_ref_id": "robinhood-lot-bklc-1"
+    },
+    {
+      "account_id": "15a0fdf4-f2b6-4604-b4e3-52de2aa8aa5b",
+      "ticker": "BKLC",
+      "quantity": "0.110862",
+      "original_purchase_price": "129.53",
+      "current_adjusted_basis": "129.53",
+      "purchase_date": "2026-03-03",
+      "status": "active",
+      "external_ref_id": "robinhood-lot-bklc-2"
+    },
+    {
+      "account_id": "15a0fdf4-f2b6-4604-b4e3-52de2aa8aa5b",
+      "ticker": "BKLC",
+      "quantity": "0.109694",
+      "original_purchase_price": "130.91",
+      "current_adjusted_basis": "130.91",
+      "purchase_date": "2026-02-03",
+      "status": "active",
+      "external_ref_id": "robinhood-lot-bklc-3"
+    },
+    {
+      "account_id": "15a0fdf4-f2b6-4604-b4e3-52de2aa8aa5b",
+      "ticker": "BKLC",
+      "quantity": "1.085788",
+      "original_purchase_price": "132.93",
+      "current_adjusted_basis": "132.93",
+      "purchase_date": "2025-12-26",
+      "status": "active",
+      "external_ref_id": "robinhood-lot-bklc-4"
+    },
+    {
+      "account_id": "15a0fdf4-f2b6-4604-b4e3-52de2aa8aa5b",
+      "ticker": "BKLC",
+      "quantity": "0.109862",
+      "original_purchase_price": "130.71",
+      "current_adjusted_basis": "130.71",
+      "purchase_date": "2025-12-01",
+      "status": "active",
+      "external_ref_id": "robinhood-lot-bklc-5"
+    },
+    {
+      "account_id": "15a0fdf4-f2b6-4604-b4e3-52de2aa8aa5b",
+      "ticker": "BKLC",
+      "quantity": "0.118649",
+      "original_purchase_price": "128.53",
+      "current_adjusted_basis": "128.53",
+      "purchase_date": "2025-11-07",
+      "status": "active",
+      "external_ref_id": "robinhood-lot-bklc-6"
+    },
+    {
+      "account_id": "15a0fdf4-f2b6-4604-b4e3-52de2aa8aa5b",
+      "ticker": "BKLC",
+      "quantity": "0.169185",
+      "original_purchase_price": "129.15",
+      "current_adjusted_basis": "129.15",
+      "purchase_date": "2025-10-06",
+      "status": "active",
+      "external_ref_id": "robinhood-lot-bklc-7"
+    },
+    {
+      "account_id": "15a0fdf4-f2b6-4604-b4e3-52de2aa8aa5b",
+      "ticker": "BKLC",
+      "quantity": "1.581362",
+      "original_purchase_price": "127.70",
+      "current_adjusted_basis": "127.70",
+      "purchase_date": "2025-10-01",
+      "status": "active",
+      "external_ref_id": "robinhood-lot-bklc-8"
+    },
+    {
+      "account_id": "15a0fdf4-f2b6-4604-b4e3-52de2aa8aa5b",
+      "ticker": "BKLC",
+      "quantity": "0.250879",
+      "original_purchase_price": "127.91",
+      "current_adjusted_basis": "127.91",
+      "purchase_date": "2025-09-29",
+      "status": "active",
+      "external_ref_id": "robinhood-lot-bklc-9"
+    },
+    {
+      "account_id": "15a0fdf4-f2b6-4604-b4e3-52de2aa8aa5b",
+      "ticker": "BKLC",
+      "quantity": "0.11717",
+      "original_purchase_price": "122.64",
+      "current_adjusted_basis": "122.64",
+      "purchase_date": "2025-09-02",
+      "status": "active",
+      "external_ref_id": "robinhood-lot-bklc-10"
+    },
+    {
+      "account_id": "15a0fdf4-f2b6-4604-b4e3-52de2aa8aa5b",
+      "ticker": "BKLC",
+      "quantity": "0.12178",
+      "original_purchase_price": "119.64",
+      "current_adjusted_basis": "119.64",
+      "purchase_date": "2025-08-01",
+      "status": "active",
+      "external_ref_id": "robinhood-lot-bklc-11"
+    },
+    {
+      "account_id": "15a0fdf4-f2b6-4604-b4e3-52de2aa8aa5b",
+      "ticker": "BKLC",
+      "quantity": "0.18444",
+      "original_purchase_price": "119.23",
+      "current_adjusted_basis": "119.23",
+      "purchase_date": "2025-07-07",
+      "status": "active",
+      "external_ref_id": "robinhood-lot-bklc-12"
+    },
+    {
+      "account_id": "15a0fdf4-f2b6-4604-b4e3-52de2aa8aa5b",
+      "ticker": "BKLC",
+      "quantity": "1.42268",
+      "original_purchase_price": "118.22",
+      "current_adjusted_basis": "118.22",
+      "purchase_date": "2025-07-01",
+      "status": "active",
+      "external_ref_id": "robinhood-lot-bklc-13"
+    },
+    {
+      "account_id": "15a0fdf4-f2b6-4604-b4e3-52de2aa8aa5b",
+      "ticker": "BKLC",
+      "quantity": "0.1219",
+      "original_purchase_price": "118.62",
+      "current_adjusted_basis": "118.62",
+      "purchase_date": "2025-06-30",
+      "status": "active",
+      "external_ref_id": "robinhood-lot-bklc-14"
+    },
+    {
+      "account_id": "15a0fdf4-f2b6-4604-b4e3-52de2aa8aa5b",
+      "ticker": "BKLC",
+      "quantity": "0.37025",
+      "original_purchase_price": "116.70",
+      "current_adjusted_basis": "116.70",
+      "purchase_date": "2025-06-25",
+      "status": "active",
+      "external_ref_id": "robinhood-lot-bklc-15"
+    },
+    {
+      "account_id": "15a0fdf4-f2b6-4604-b4e3-52de2aa8aa5b",
+      "ticker": "BKLC",
+      "quantity": "0.13145",
+      "original_purchase_price": "112.44",
+      "current_adjusted_basis": "112.44",
+      "purchase_date": "2025-06-02",
+      "status": "active",
+      "external_ref_id": "robinhood-lot-bklc-16"
+    }
+  ]
+}

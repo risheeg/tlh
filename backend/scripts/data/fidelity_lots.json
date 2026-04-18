@@ -1,0 +1,755 @@
+{
+  "user_id": "45a10eec-1398-483e-b7cd-be90fbd2c77c",
+  "lots": [
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "BBUS",
+      "quantity": "0.146988",
+      "original_purchase_price": "121.3",
+      "current_adjusted_basis": "121.3",
+      "purchase_date": "2026-04-08",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-bbus-1"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "BBUS",
+      "quantity": "0.466984",
+      "original_purchase_price": "101.97",
+      "current_adjusted_basis": "101.97",
+      "purchase_date": "2025-05-05",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-bbus-2"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "BKLC",
+      "quantity": "0.232031",
+      "original_purchase_price": "130.54",
+      "current_adjusted_basis": "130.54",
+      "purchase_date": "2026-03-10",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-bklc-3"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "BKLC",
+      "quantity": "0.932024",
+      "original_purchase_price": "130.45",
+      "current_adjusted_basis": "130.45",
+      "purchase_date": "2025-11-26",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-bklc-4"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "BKLC",
+      "quantity": "10.0",
+      "original_purchase_price": "130.44",
+      "current_adjusted_basis": "130.44",
+      "purchase_date": "2025-11-26",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-bklc-5"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "BKLC",
+      "quantity": "0.17303",
+      "original_purchase_price": "127.55",
+      "current_adjusted_basis": "127.55",
+      "purchase_date": "2025-11-24",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-bklc-6"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "BKLC",
+      "quantity": "25.0",
+      "original_purchase_price": "127.56",
+      "current_adjusted_basis": "127.56",
+      "purchase_date": "2025-11-24",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-bklc-7"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "BKLC",
+      "quantity": "18.0",
+      "original_purchase_price": "127.15",
+      "current_adjusted_basis": "127.15",
+      "purchase_date": "2025-11-19",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-bklc-8"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "BKLC",
+      "quantity": "0.536011",
+      "original_purchase_price": "127.12",
+      "current_adjusted_basis": "127.12",
+      "purchase_date": "2025-11-19",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-bklc-9"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "BKLC",
+      "quantity": "0.005003",
+      "original_purchase_price": "127.93",
+      "current_adjusted_basis": "127.93",
+      "purchase_date": "2025-09-29",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-bklc-10"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "BKLC",
+      "quantity": "0.148017",
+      "original_purchase_price": "127.08",
+      "current_adjusted_basis": "127.08",
+      "purchase_date": "2025-09-26",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-bklc-11"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "BKLC",
+      "quantity": "0.543",
+      "original_purchase_price": "111.8",
+      "current_adjusted_basis": "111.8",
+      "purchase_date": "2025-05-22",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-bklc-12"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "FZILX",
+      "quantity": "0.012828",
+      "original_purchase_price": "11.69",
+      "current_adjusted_basis": "11.69",
+      "purchase_date": "2024-05-21",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-fzilx-23"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "FZILX",
+      "quantity": "0.004276",
+      "original_purchase_price": "9.35",
+      "current_adjusted_basis": "9.35",
+      "purchase_date": "2024-02-20",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-fzilx-24"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "FZILX",
+      "quantity": "26.714722",
+      "original_purchase_price": "10.79",
+      "current_adjusted_basis": "10.79",
+      "purchase_date": "2023-12-15",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-fzilx-25"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "FZILX",
+      "quantity": "0.086133",
+      "original_purchase_price": "10.57",
+      "current_adjusted_basis": "10.57",
+      "purchase_date": "2023-06-05",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-fzilx-26"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "FZILX",
+      "quantity": "331.871717",
+      "original_purchase_price": "10.75",
+      "current_adjusted_basis": "10.75",
+      "purchase_date": "2023-05-08",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-fzilx-27"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "FZILX",
+      "quantity": "16.618815",
+      "original_purchase_price": "9.74",
+      "current_adjusted_basis": "9.74",
+      "purchase_date": "2022-12-16",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-fzilx-28"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "FZILX",
+      "quantity": "0.059866",
+      "original_purchase_price": "9.02",
+      "current_adjusted_basis": "9.02",
+      "purchase_date": "2022-10-06",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-fzilx-29"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "FZILX",
+      "quantity": "182.794136",
+      "original_purchase_price": "8.78",
+      "current_adjusted_basis": "8.78",
+      "purchase_date": "2022-09-26",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-fzilx-30"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "FZILX",
+      "quantity": "617.861943",
+      "original_purchase_price": "10.25",
+      "current_adjusted_basis": "10.25",
+      "purchase_date": "2022-08-17",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-fzilx-31"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "FZIPX",
+      "quantity": "0.051116",
+      "original_purchase_price": "14.87",
+      "current_adjusted_basis": "14.87",
+      "purchase_date": "2025-09-29",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-fzipx-32"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "FZIPX",
+      "quantity": "0.064042",
+      "original_purchase_price": "14.52",
+      "current_adjusted_basis": "14.52",
+      "purchase_date": "2025-09-02",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-fzipx-33"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "FZIPX",
+      "quantity": "0.001763",
+      "original_purchase_price": "17.02",
+      "current_adjusted_basis": "17.02",
+      "purchase_date": "2025-08-28",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-fzipx-34"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "FZIPX",
+      "quantity": "0.005288",
+      "original_purchase_price": "15.13",
+      "current_adjusted_basis": "15.13",
+      "purchase_date": "2025-08-22",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-fzipx-35"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "FZIPX",
+      "quantity": "0.005288",
+      "original_purchase_price": "13.24",
+      "current_adjusted_basis": "13.24",
+      "purchase_date": "2025-08-19",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-fzipx-36"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "FZIPX",
+      "quantity": "0.002938",
+      "original_purchase_price": "17.02",
+      "current_adjusted_basis": "17.02",
+      "purchase_date": "2025-08-14",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-fzipx-37"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "FZIPX",
+      "quantity": "0.219741",
+      "original_purchase_price": "13.97",
+      "current_adjusted_basis": "13.97",
+      "purchase_date": "2025-08-07",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-fzipx-38"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "FZIPX",
+      "quantity": "0.018801",
+      "original_purchase_price": "13.83",
+      "current_adjusted_basis": "13.83",
+      "purchase_date": "2025-08-01",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-fzipx-39"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "FZIPX",
+      "quantity": "0.002938",
+      "original_purchase_price": "13.62",
+      "current_adjusted_basis": "13.62",
+      "purchase_date": "2025-07-30",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-fzipx-40"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "FZIPX",
+      "quantity": "0.008226",
+      "original_purchase_price": "13.37",
+      "current_adjusted_basis": "13.37",
+      "purchase_date": "2025-07-15",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-fzipx-41"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "FZIPX",
+      "quantity": "0.008226",
+      "original_purchase_price": "13.37",
+      "current_adjusted_basis": "13.37",
+      "purchase_date": "2025-07-15",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-fzipx-42"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "FZIPX",
+      "quantity": "0.001175",
+      "original_purchase_price": "17.02",
+      "current_adjusted_basis": "17.02",
+      "purchase_date": "2025-07-09",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-fzipx-43"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "FZIPX",
+      "quantity": "0.005875",
+      "original_purchase_price": "13.62",
+      "current_adjusted_basis": "13.62",
+      "purchase_date": "2025-06-12",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-fzipx-44"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "FZIPX",
+      "quantity": "0.008226",
+      "original_purchase_price": "12.16",
+      "current_adjusted_basis": "12.16",
+      "purchase_date": "2025-06-02",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-fzipx-45"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "FZIPX",
+      "quantity": "8.189777",
+      "original_purchase_price": "12.02",
+      "current_adjusted_basis": "12.02",
+      "purchase_date": "2023-12-15",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-fzipx-46"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "FZIPX",
+      "quantity": "203.398942",
+      "original_purchase_price": "10.64",
+      "current_adjusted_basis": "10.64",
+      "purchase_date": "2023-05-08",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-fzipx-47"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "FZIPX",
+      "quantity": "6.631022",
+      "original_purchase_price": "10.51",
+      "current_adjusted_basis": "10.51",
+      "purchase_date": "2022-12-16",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-fzipx-48"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "FZIPX",
+      "quantity": "0.021739",
+      "original_purchase_price": "11.04",
+      "current_adjusted_basis": "11.04",
+      "purchase_date": "2022-11-21",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-fzipx-49"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "FZIPX",
+      "quantity": "62.088719",
+      "original_purchase_price": "10.34",
+      "current_adjusted_basis": "10.34",
+      "purchase_date": "2022-10-21",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-fzipx-50"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "FZIPX",
+      "quantity": "30.303173",
+      "original_purchase_price": "9.9",
+      "current_adjusted_basis": "9.9",
+      "purchase_date": "2022-09-27",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-fzipx-51"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "FZIPX",
+      "quantity": "70.850176",
+      "original_purchase_price": "9.88",
+      "current_adjusted_basis": "9.88",
+      "purchase_date": "2022-09-26",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-fzipx-52"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "FZIPX",
+      "quantity": "246.814924",
+      "original_purchase_price": "11.79",
+      "current_adjusted_basis": "11.79",
+      "purchase_date": "2022-08-17",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-fzipx-53"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "FZROX",
+      "quantity": "803.58814",
+      "original_purchase_price": "17.73",
+      "current_adjusted_basis": "17.73",
+      "purchase_date": "2024-02-29",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-fzrox-54"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "SPYM",
+      "quantity": "0.941015",
+      "original_purchase_price": "58.29",
+      "current_adjusted_basis": "58.29",
+      "purchase_date": "2025-04-09",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-spym-55"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "TEAM",
+      "quantity": "51.0",
+      "original_purchase_price": "74.02",
+      "current_adjusted_basis": "74.02",
+      "purchase_date": "2026-02-27",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-team-56"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "TEAM",
+      "quantity": "0.047953",
+      "original_purchase_price": "74.24",
+      "current_adjusted_basis": "74.24",
+      "purchase_date": "2026-02-27",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-team-57"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "TEAM",
+      "quantity": "14.0",
+      "original_purchase_price": "81.22",
+      "current_adjusted_basis": "81.22",
+      "purchase_date": "2026-02-17",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-team-58"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "TEAM",
+      "quantity": "0.776068",
+      "original_purchase_price": "81.13",
+      "current_adjusted_basis": "81.13",
+      "purchase_date": "2026-02-17",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-team-59"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "TEAM",
+      "quantity": "4.0",
+      "original_purchase_price": "91.8",
+      "current_adjusted_basis": "91.8",
+      "purchase_date": "2026-02-09",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-team-60"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "TEAM",
+      "quantity": "27.0",
+      "original_purchase_price": "91.03",
+      "current_adjusted_basis": "91.03",
+      "purchase_date": "2026-02-09",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-team-61"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "VTI",
+      "quantity": "0.140987",
+      "original_purchase_price": "218.53",
+      "current_adjusted_basis": "218.53",
+      "purchase_date": "2023-08-17",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-vti-62"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "VUG",
+      "quantity": "0.925008",
+      "original_purchase_price": "435.11",
+      "current_adjusted_basis": "435.11",
+      "purchase_date": "2025-07-02",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-vug-63"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "VXF",
+      "quantity": "0.101009",
+      "original_purchase_price": "202.16",
+      "current_adjusted_basis": "202.16",
+      "purchase_date": "2026-03-27",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-vxf-64"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "VXF",
+      "quantity": "0.951",
+      "original_purchase_price": "193.56",
+      "current_adjusted_basis": "193.56",
+      "purchase_date": "2025-07-02",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-vxf-65"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "FNILX",
+      "quantity": "0.005",
+      "original_purchase_price": "20.00",
+      "current_adjusted_basis": "20.00",
+      "purchase_date": "2025-01-03",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-fnilx-new-1"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "FNILX",
+      "quantity": "0.003",
+      "original_purchase_price": "23.33",
+      "current_adjusted_basis": "23.33",
+      "purchase_date": "2024-12-30",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-fnilx-new-2"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "FNILX",
+      "quantity": "0.069",
+      "original_purchase_price": "21.74",
+      "current_adjusted_basis": "21.74",
+      "purchase_date": "2024-12-02",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-fnilx-new-3"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "FNILX",
+      "quantity": "0.003",
+      "original_purchase_price": "23.33",
+      "current_adjusted_basis": "23.33",
+      "purchase_date": "2024-11-27",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-fnilx-new-4"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "FNILX",
+      "quantity": "0.013",
+      "original_purchase_price": "19.23",
+      "current_adjusted_basis": "19.23",
+      "purchase_date": "2024-07-02",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-fnilx-new-5"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "FNILX",
+      "quantity": "0.003",
+      "original_purchase_price": "16.67",
+      "current_adjusted_basis": "16.67",
+      "purchase_date": "2024-06-13",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-fnilx-new-6"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "FNILX",
+      "quantity": "0.033",
+      "original_purchase_price": "18.48",
+      "current_adjusted_basis": "18.48",
+      "purchase_date": "2024-06-03",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-fnilx-new-7"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "FNILX",
+      "quantity": "0.005",
+      "original_purchase_price": "20.00",
+      "current_adjusted_basis": "20.00",
+      "purchase_date": "2024-05-30",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-fnilx-new-8"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "FNILX",
+      "quantity": "0.005",
+      "original_purchase_price": "20.00",
+      "current_adjusted_basis": "20.00",
+      "purchase_date": "2024-05-28",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-fnilx-new-9"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "FNILX",
+      "quantity": "48.849",
+      "original_purchase_price": "18.17",
+      "current_adjusted_basis": "18.17",
+      "purchase_date": "2024-04-12",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-fnilx-new-10"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "FNILX",
+      "quantity": "0.14",
+      "original_purchase_price": "16.93",
+      "current_adjusted_basis": "16.93",
+      "purchase_date": "2023-12-27",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-fnilx-new-11"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "FNILX",
+      "quantity": "7.822",
+      "original_purchase_price": "16.67",
+      "current_adjusted_basis": "16.67",
+      "purchase_date": "2023-12-15",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-fnilx-new-12"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "FNILX",
+      "quantity": "243.126",
+      "original_purchase_price": "14.56",
+      "current_adjusted_basis": "14.56",
+      "purchase_date": "2023-05-08",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-fnilx-new-13"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "FNILX",
+      "quantity": "6.066",
+      "original_purchase_price": "13.45",
+      "current_adjusted_basis": "13.45",
+      "purchase_date": "2022-12-16",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-fnilx-new-14"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "FNILX",
+      "quantity": "64.608",
+      "original_purchase_price": "13.28",
+      "current_adjusted_basis": "13.28",
+      "purchase_date": "2022-10-21",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-fnilx-new-15"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "FNILX",
+      "quantity": "54.264",
+      "original_purchase_price": "12.90",
+      "current_adjusted_basis": "12.90",
+      "purchase_date": "2022-09-27",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-fnilx-new-16"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "FNILX",
+      "quantity": "23.22",
+      "original_purchase_price": "12.92",
+      "current_adjusted_basis": "12.92",
+      "purchase_date": "2022-09-26",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-fnilx-new-17"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "FNILX",
+      "quantity": "80.494",
+      "original_purchase_price": "15.10",
+      "current_adjusted_basis": "15.10",
+      "purchase_date": "2022-08-17",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-fnilx-new-18"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "FNILX",
+      "quantity": "294.184",
+      "original_purchase_price": "15.10",
+      "current_adjusted_basis": "15.10",
+      "purchase_date": "2022-08-17",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-fnilx-new-19"
+    },
+    {
+      "account_id": "e2d8fc37-1170-4d2f-b622-a310f4731c31",
+      "ticker": "FNILX",
+      "quantity": "6.887",
+      "original_purchase_price": "14.52",
+      "current_adjusted_basis": "14.52",
+      "purchase_date": "2022-08-01",
+      "status": "active",
+      "external_ref_id": "fidelity-lot-fnilx-new-20"
+    }
+  ]
+}

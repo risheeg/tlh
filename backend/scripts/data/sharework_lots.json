@@ -1,0 +1,55 @@
+{
+  "user_id": "45a10eec-1398-483e-b7cd-be90fbd2c77c",
+  "lots": [
+    {
+      "account_id": "d27aa118-fcb2-490a-98af-130240e228cd",
+      "ticker": "TEAM",
+      "quantity": "9.0",
+      "original_purchase_price": "86.66",
+      "current_adjusted_basis": "86.66",
+      "purchase_date": "2026-02-12",
+      "status": "active",
+      "external_ref_id": "antigravity-parsed-shareworks-lot-1"
+    },
+    {
+      "account_id": "d27aa118-fcb2-490a-98af-130240e228cd",
+      "ticker": "TEAM",
+      "quantity": "1.0",
+      "original_purchase_price": "86.66",
+      "current_adjusted_basis": "86.66",
+      "purchase_date": "2026-02-12",
+      "status": "active",
+      "external_ref_id": "antigravity-parsed-shareworks-lot-2"
+    },
+    {
+      "account_id": "d27aa118-fcb2-490a-98af-130240e228cd",
+      "ticker": "TEAM",
+      "quantity": "1.0",
+      "original_purchase_price": "86.98",
+      "current_adjusted_basis": "86.98",
+      "purchase_date": "2026-02-09",
+      "status": "active",
+      "external_ref_id": "antigravity-parsed-shareworks-lot-3"
+    },
+    {
+      "account_id": "d27aa118-fcb2-490a-98af-130240e228cd",
+      "ticker": "TEAM",
+      "quantity": "6.0",
+      "original_purchase_price": "89.58",
+      "current_adjusted_basis": "89.58",
+      "purchase_date": "2026-02-05",
+      "status": "active",
+      "external_ref_id": "antigravity-parsed-shareworks-lot-4"
+    },
+    {
+      "account_id": "d27aa118-fcb2-490a-98af-130240e228cd",
+      "ticker": "TEAM",
+      "quantity": "20.0",
+      "original_purchase_price": "83.61",
+      "current_adjusted_basis": "83.61",
+      "purchase_date": "2026-02-18",
+      "status": "active",
+      "external_ref_id": "antigravity-parsed-shareworks-lot-5"
+    }
+  ]
+}
