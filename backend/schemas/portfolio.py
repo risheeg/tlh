@@ -1,24 +1,29 @@
-"""
-Pydantic schemas for portfolio and net worth.
-"""
 import uuid
-from datetime import datetime
+from datetime import datetime, date
 from decimal import Decimal
 from pydantic import BaseModel
-from schemas.schemas import LotResponse, AggregatePositionResponse
+from models.models import AssetType
 
-class EnrichedLot(BaseModel):
-    lot: LotResponse
-    current_price: Decimal | None
-    market_value: Decimal | None
+class EnrichedHolding(BaseModel):
+    holding_id: uuid.UUID
+    user_id: uuid.UUID
+    account_id: uuid.UUID
+    ticker: str
+    quantity: Decimal
+    purchase_date: date | None = None
+    original_purchase_price: Decimal | None = None
+    cost_basis: Decimal | None = None
+    external_ref_id: str | None = None
+    last_updated: datetime | None = None
+    holding_type: str  # 'lot' or 'aggregate'
+    asset_type: str  # 'Equity' or 'Cash'
+    current_price: Decimal
+    market_value: Decimal
+    price_last_updated: datetime | None = None
 
-class EnrichedAggregatePosition(BaseModel):
-    position: AggregatePositionResponse
-    current_price: Decimal | None
-    market_value: Decimal | None
+    model_config = {"from_attributes": True}
 
 class PortfolioSnapshot(BaseModel):
-    lots: list[EnrichedLot]
-    aggregate_positions: list[EnrichedAggregatePosition]
+    holdings: list[EnrichedHolding]
     total_net_worth: Decimal
     last_updated: datetime | None
