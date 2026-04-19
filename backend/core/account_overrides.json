@@ -1,0 +1,67 @@
+{
+  "columns": [
+    {
+      "header": "Robinhood Brokerage",
+      "accounts": ["Robinhood Brokerage"]
+    },
+    {
+      "header": "Fidelity Brokerage + Shareworks",
+      "accounts": ["Fidelity Brokerage", "Shareworks"]
+    },
+    {
+      "header": "Kraken",
+      "accounts": ["Kraken"]
+    },
+    {
+      "header": "ROTH IRA RObinhood",
+      "accounts": ["ROTH IRA @ Robinhood"]
+    },
+    {
+      "header": "SoFi IRA/ Etrade IRA",
+      "accounts": ["Roth IRA @ SoFi", "ROTH IRA @ Etrade"]
+    },
+    {
+      "header": "ROTH 401k",
+      "accounts": ["ROTH 401k @ Fidelity"]
+    },
+    {
+      "header": "Traditional 401k",
+      "accounts": ["Traditional 401k @ Fidelity"]
+    },
+    {
+      "header": "HSA Fidelity",
+      "accounts": ["HSA Fidelity (non taxable)"]
+    }
+  ],
+  "category_order": [
+    "US Overall",
+    "US large",
+    "US Large",
+    "US Growth Large",
+    "Us Value Large",
+    "US Exteneded",
+    "US Extended Market",
+    "International",
+    "International Developed",
+    "Indvl Company",
+    "Cash/Cash Equivalents"
+  ],
+  "ticker_order": [
+    "VTI",
+    "FZROX",
+    "BKLC",
+    "SPLG",
+    "BBUS",
+    "FNILX",
+    "VUG",
+    "VTV",
+    "VXF",
+    "FZIPX",
+    "FZILX",
+    "VXUS",
+    "FSPSX",
+    "VWO",
+    "FIG",
+    "TEAM"
+  ]
+}

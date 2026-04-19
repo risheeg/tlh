@@ -6,6 +6,7 @@ class Settings(BaseSettings):
 
     # Google Sheets integration
     google_sheet_id: str
+    portfolio_snapshot_sheet_id: str
     google_application_credentials: str = "../google_credentials.json"
 
     model_config = SettingsConfigDict(

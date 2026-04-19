@@ -9,9 +9,9 @@ from services.sheets import sheets_service
 def purge_sheet():
     print("[purge] Connecting to Google Sheets...")
     # Clear the entire worksheet
-    sheets_service.worksheet.clear()
+    sheets_service.price_worksheet.clear()
     # Add a header just in case
-    sheets_service.worksheet.update('A1', [['Ticker', 'Price']])
+    sheets_service.price_worksheet.update('A1', [['Ticker', 'Price']])
     print("[purge] Spreadsheet purged successfully (Header re-added).")
 
 if __name__ == "__main__":
