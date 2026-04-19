@@ -150,6 +150,8 @@ class StockPrice(Base):
 
     ticker: Mapped[str] = mapped_column(String, primary_key=True)
     exchange: Mapped[str | None] = mapped_column(String, nullable=True)
+    category: Mapped[str | None] = mapped_column(String, nullable=True)
+    expense_ratio: Mapped[float | None] = mapped_column(Numeric(10, 6), nullable=True)
     price: Mapped[float] = mapped_column(Numeric(18, 2), nullable=False)
     last_updated: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
