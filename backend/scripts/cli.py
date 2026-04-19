@@ -407,6 +407,70 @@ def cmd_prices_sync(args: argparse.Namespace) -> None:  # noqa: ARG001
 
 
 # ---------------------------------------------------------------------------
+# Subcommand: history
+# ---------------------------------------------------------------------------
+
+def cmd_history_capture(args: argparse.Namespace) -> None:  # noqa: ARG001
+    """Capture a net worth snapshot for all users."""
+    import sys as _sys
+    _sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    from services.portfolio.history_service import create_net_worth_snapshot
+    from models.models import User
+
+    db = _get_db_session()
+    try:
+        users = db.query(User).all()
+        if not users:
+            print("No users found.")
+            return
+
+        print("Starting net worth snapshot capture...")
+        for user in users:
+            try:
+                print(f"  Capturing for: {user.email}...")
+                create_net_worth_snapshot(db, user.id)
+            except Exception as e:
+                print(f"  FAILED for {user.email}: {e}")
+        print("✓ Capture complete.")
+    finally:
+        db.close()
+
+
+# ---------------------------------------------------------------------------
+# Subcommand: tlh
+# ---------------------------------------------------------------------------
+
+def cmd_tlh_check(args: argparse.Namespace) -> None:  # noqa: ARG001
+    """Run the tax loss harvesting check for all users."""
+    import sys as _sys
+    _sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    from services.tlh_service import check_and_notify_tlh
+    from models.models import User
+
+    db = _get_db_session()
+    try:
+        users = db.query(User).all()
+        if not users:
+            print("No users found.")
+            return
+
+        print("Starting tax loss harvesting check...")
+        for user in users:
+            try:
+                print(f"  Checking for: {user.email}...")
+                result = check_and_notify_tlh(db, str(user.id))
+                if result.get("notified"):
+                    print(f"    ✓ NOTIFIED: ${result['total_loss']:,.2f} loss identified.")
+                else:
+                    print(f"    - No notification sent (Loss: ${result.get('total_loss', 0):,.2f}).")
+            except Exception as e:
+                print(f"  FAILED for {user.email}: {e}")
+        print("✓ TLH check complete.")
+    finally:
+        db.close()
+
+
+# ---------------------------------------------------------------------------
 # Subcommand: users  (create a user directly in the DB)
 # ---------------------------------------------------------------------------
 
@@ -569,6 +633,22 @@ def build_parser() -> argparse.ArgumentParser:
 
     sync_prices_p = prices_sub.add_parser("sync", help="Trigger stock price synchronization")
     sync_prices_p.set_defaults(func=cmd_prices_sync)
+
+    # ---- history ------------------------------------------------------------
+    history_p = sub.add_parser("history", help="Net worth history management")
+    history_sub = history_p.add_subparsers(dest="action", metavar="<action>")
+    history_sub.required = True
+
+    capture_history_p = history_sub.add_parser("capture", help="Capture a daily net worth snapshot")
+    capture_history_p.set_defaults(func=cmd_history_capture)
+
+    # ---- tlh ----------------------------------------------------------------
+    tlh_p = sub.add_parser("tlh", help="Tax Loss Harvesting tools")
+    tlh_sub = tlh_p.add_subparsers(dest="action", metavar="<action>")
+    tlh_sub.required = True
+
+    check_tlh_p = tlh_sub.add_parser("check", help="Identify lots with losses and notify users")
+    check_tlh_p.set_defaults(func=cmd_tlh_check)
 
     return parser
 
