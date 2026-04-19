@@ -14,7 +14,7 @@ from sqlalchemy import (
     String,
     UniqueConstraint,
 )
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from db.session import Base
@@ -199,5 +199,33 @@ class PortfolioHoldingEnriched(Base):
 
     market_value: Mapped[float | None] = mapped_column(Numeric(18, 2))
     price_last_updated: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class NetWorthSnapshot(Base):
+    """Historical snapshot of total net worth and portfolio breakdown."""
+    __tablename__ = "net_worth_snapshots"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id"), index=True, nullable=False
+    )
+    snapshot_date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
+    total_net_worth: Mapped[float] = mapped_column(Numeric(18, 2), nullable=False)
+    
+    # Stores breakdown by category, account, asset_type:
+    # { "categories": {...}, "accounts": {...}, "asset_types": {...} }
+    breakdown: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
+    )
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "snapshot_date", name="uq_user_snapshot_date"),
+    )
+
+    user: Mapped["User"] = relationship("User")
 
 
