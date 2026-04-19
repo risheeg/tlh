@@ -19,19 +19,12 @@ def _fetch_aggregated_holdings(db: Session, user_id) -> list:
         db.query(
             PortfolioHoldingEnriched.ticker,
             PortfolioHoldingEnriched.account_id,
-            case(
-                (PortfolioHoldingEnriched.asset_type == "Cash", "Cash/Cash Equivalents"), 
-                else_=StockPrice.category
-            ).label("category"),
-            case(
-                (PortfolioHoldingEnriched.asset_type == "Cash", 0), 
-                else_=StockPrice.expense_ratio
-            ).label("expense_ratio"),
-            func.sum(PortfolioHoldingEnriched.market_value).label("market_value"),
+            PortfolioHoldingEnriched.category,
+            PortfolioHoldingEnriched.expense_ratio,
+            PortfolioHoldingEnriched.market_value,
             (PortfolioHoldingEnriched.asset_type == "Cash").label("is_cash")
         )
-        .outerjoin(StockPrice, PortfolioHoldingEnriched.ticker == StockPrice.ticker)
         .filter(PortfolioHoldingEnriched.user_id == user_id)
-        .group_by(PortfolioHoldingEnriched.ticker, PortfolioHoldingEnriched.account_id, "category", "expense_ratio", "is_cash")
         .all()
     )
+
