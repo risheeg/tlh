@@ -158,7 +158,26 @@ class StockPrice(Base):
     )
 
 
+
+class PortfolioAggregatedPosition(Base):
+    """
+    Unified view of aggregated lots and aggregate positions (Book Value).
+    This model is mapped to a database VIEW.
+    """
+    __tablename__ = "portfolio_aggregated_positions"
+
+    holding_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), index=True)
+    account_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("accounts.id"), index=True)
+    ticker: Mapped[str] = mapped_column(String)
+    quantity: Mapped[float] = mapped_column(Numeric(18, 8))
+    cost_basis: Mapped[float | None] = mapped_column(Numeric(18, 2))
+    holding_type: Mapped[str] = mapped_column(String)  # 'lot' or 'aggregate'
+    asset_type: Mapped[str] = mapped_column(String)  # 'Equity' or 'Cash'
+
+
 class PortfolioHoldingEnriched(Base):
+
     """
     Unified view of lots and aggregate positions, enriched with price data.
     This model is mapped to a database VIEW, not a table.
@@ -170,13 +189,15 @@ class PortfolioHoldingEnriched(Base):
     account_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("accounts.id"), index=True)
     ticker: Mapped[str] = mapped_column(String)
     quantity: Mapped[float] = mapped_column(Numeric(18, 8))
-    purchase_date: Mapped[date | None] = mapped_column(Date)
     original_purchase_price: Mapped[float | None] = mapped_column(Numeric(18, 2))
     cost_basis: Mapped[float | None] = mapped_column(Numeric(18, 2))
-    external_ref_id: Mapped[str | None] = mapped_column(String)
-    last_updated: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     holding_type: Mapped[str] = mapped_column(String)  # 'lot' or 'aggregate'
     asset_type: Mapped[str] = mapped_column(String)  # 'Equity' or 'Cash'
+    category: Mapped[str | None] = mapped_column(String)
+    expense_ratio: Mapped[float | None] = mapped_column(Numeric(10, 6))
     current_price: Mapped[float | None] = mapped_column(Numeric(18, 2))
+
     market_value: Mapped[float | None] = mapped_column(Numeric(18, 2))
     price_last_updated: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+

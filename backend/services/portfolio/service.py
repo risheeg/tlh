@@ -39,16 +39,13 @@ def get_category_summary(db: Session, user_id) -> list[dict] | None:
     """
     results = (
         db.query(
-            case(
-                (PortfolioHoldingEnriched.asset_type == "Cash", "Cash/Cash Equivalents"),
-                else_=StockPrice.category
-            ).label("category"),
+            PortfolioHoldingEnriched.category,
             PortfolioHoldingEnriched.market_value
         )
-        .outerjoin(StockPrice, PortfolioHoldingEnriched.ticker == StockPrice.ticker)
         .filter(PortfolioHoldingEnriched.user_id == user_id)
         .all()
     )
+
     
     if not results:
         return None
