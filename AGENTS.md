@@ -8,7 +8,7 @@ Some key rules:
 - Use uv for installing packages
 - Use a logical file structure and write clean readable code
 - Keep all backend code under the backend folder.
-- Make a commit at logical points (ex. adding a new feature)
+- Promptly remove any test or adhoc scripts that are created as intermediate outputs of your work
 
 Additional Notes:
 - We will use Neon as our relational database

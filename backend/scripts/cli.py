@@ -142,7 +142,7 @@ def cmd_accounts_create(args: argparse.Namespace) -> None:
     _sys = __import__("sys")
     _sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-    from models.models import Account, AccountType, User  # noqa: E402
+    from models.models import Account, AccountType, AssetType, User  # noqa: E402
 
     user_id = _get_user_id()
 
@@ -151,7 +151,7 @@ def cmd_accounts_create(args: argparse.Namespace) -> None:
         account_type = AccountType(args.type)
     except ValueError:
         sys.exit(f"Error: invalid account type '{args.type}'. "
-                 "Choose from: taxable, retirement")
+                 "Choose from: taxable, retirement, savings, checkings, cma")
 
     db = _get_db_session()
     try:
@@ -314,7 +314,7 @@ def cmd_positions_upload(args: argparse.Namespace) -> None:
 
     import sys as _sys
     _sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-    from models.models import Account, AggregatePosition, User  # noqa: E402
+    from models.models import Account, AggregatePosition, AssetType, User  # noqa: E402
 
     user_id = _get_user_id()
 
@@ -348,6 +348,7 @@ def cmd_positions_upload(args: argparse.Namespace) -> None:
         if existing:
             existing.quantity = args.quantity
             existing.cost_basis = args.cost_basis
+            existing.asset_type = AssetType(args.asset_type)
             existing.last_updated = now
             action = "updated"
             position_id = str(existing.id)
@@ -359,6 +360,7 @@ def cmd_positions_upload(args: argparse.Namespace) -> None:
                 ticker=ticker,
                 quantity=args.quantity,
                 cost_basis=args.cost_basis,
+                asset_type=AssetType(args.asset_type),
                 last_updated=now,
             )
             db.add(position)
@@ -376,6 +378,7 @@ def cmd_positions_upload(args: argparse.Namespace) -> None:
     print(f"  quantity   : {args.quantity}")
     if args.cost_basis is not None:
         print(f"  cost_basis : {args.cost_basis}")
+    print(f"  asset_type : {args.asset_type}")
     print(f"  account_id : {account_id}")
 
 
@@ -500,8 +503,8 @@ def build_parser() -> argparse.ArgumentParser:
     create_acc_p.add_argument("--name", required=True, metavar="NAME",
                               help="Account name (e.g. 'Schwab Brokerage')")
     create_acc_p.add_argument(
-        "--type", required=True, choices=["taxable", "retirement"],
-        metavar="TYPE", help="Account type: taxable | retirement"
+        "--type", required=True, choices=["taxable", "retirement", "savings", "checkings", "cma"],
+        metavar="TYPE", help="Account type: taxable | retirement | savings | checkings | cma"
     )
     create_acc_p.add_argument("--institution", default=None, metavar="INSTITUTION",
                               help="Institution name (optional)")
@@ -554,6 +557,9 @@ def build_parser() -> argparse.ArgumentParser:
                               help="Total quantity / shares held")
     upload_pos_p.add_argument("--cost-basis", default=None, type=float, metavar="BASIS",
                               help="Aggregated cost basis in dollars (optional)")
+    upload_pos_p.add_argument("--asset-type", default="Equity",
+                              choices=["Equity", "Cash"],
+                              help="Asset type: Equity | Cash (default: Equity)")
     upload_pos_p.set_defaults(func=cmd_positions_upload)
 
     # ---- prices -------------------------------------------------------------
