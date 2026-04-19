@@ -18,6 +18,7 @@ dependencies = [
     "google-api-python-client>=2.126.0",
     "gspread>=6.1.0",
     "apscheduler>=3.10.4",
+    "gspread-formatting>=1.2.1",
 ]
 
 [project.scripts]
