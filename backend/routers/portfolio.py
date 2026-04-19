@@ -42,15 +42,14 @@ def sync_portfolio_snapshot(user_id: uuid.UUID, group_by: str = "type", db: Sess
     if sheets_service.get_last_snapshot_date() == today_str:
         return {"status": "skipped", "message": f"Snapshot for {today_str} already exists."}
     
-    res = generate_snapshot_rows(db, user_id, group_by=group_by)
-    if res is None:
+    rows = generate_snapshot_rows(db, user_id, group_by=group_by)
+    if rows is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Could not generate spreadsheet rows. Ensure stock prices are fresh."
         )
     
-    rows, num_main_cols, num_summary_cols = res
-    sheets_service.append_snapshot(rows, num_main_cols, num_summary_cols)
+    sheets_service.append_snapshot(rows)
     
     return {"status": "success", "message": f"Snapshot for {today_str} synced to Google Sheets."}
 

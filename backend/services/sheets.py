@@ -82,7 +82,7 @@ class GoogleSheetsService:
                     return val
         return None
 
-    def append_snapshot(self, rows: list[list], num_main_cols: int, num_summary_cols: int):
+    def append_snapshot(self, rows: list[list]):
         """
         Appends a block of rows to the snapshot worksheet and applies formatting.
         """
@@ -93,53 +93,37 @@ class GoogleSheetsService:
         start_row = len(all_values) + (2 if all_values else 1)
         
         self.snapshot_worksheet.append_rows(rows_to_append, value_input_option="USER_ENTERED")
-        self._apply_formatting(start_row, len(rows), num_main_cols, num_summary_cols)
+        self._apply_formatting(start_row, len(rows), len(rows[0]))
 
-    def _apply_formatting(self, start_row: int, num_rows: int, num_main_cols: int, num_summary_cols: int):
+    def _apply_formatting(self, start_row: int, num_rows: int, num_cols: int):
         """
         Applies colors, bolding, and alignment to the snapshot block.
         """
         end_row = start_row + num_rows - 1
         
-        # 1. Main Header Formatting
-        main_header_range = f"A{start_row}:{self._col_to_letter(num_main_cols)}{start_row}"
-        format_cell_range(self.snapshot_worksheet, main_header_range, cellFormat(
-            backgroundColor=color(0.1, 0.45, 0.82), # Dark Blue
+        # 1. Header Formatting (Dark Blue)
+        header_range = f"A{start_row}:{self._col_to_letter(num_cols)}{start_row}"
+        format_cell_range(self.snapshot_worksheet, header_range, cellFormat(
+            backgroundColor=color(0.1, 0.45, 0.82),
             textFormat=textFormat(bold=True, foregroundColor=color(1, 1, 1)),
             horizontalAlignment='CENTER'
         ))
         
-        # 2. Summary Header Formatting
-        summary_start_col = num_main_cols + 3 # +2 padding
-        summary_header_range = f"{self._col_to_letter(summary_start_col)}{start_row}:{self._col_to_letter(summary_start_col + num_summary_cols - 1)}{start_row}"
-        format_cell_range(self.snapshot_worksheet, summary_header_range, cellFormat(
-            backgroundColor=color(0.11, 0.46, 0.24), # Dark Green
-            textFormat=textFormat(bold=True, foregroundColor=color(1, 1, 1)),
-            horizontalAlignment='CENTER'
-        ))
-        
-        # 3. Totals Row Formatting (Bold + Light Grey Background)
-        total_range = f"A{end_row}:{self._col_to_letter(summary_start_col + num_summary_cols - 1)}{end_row}"
+        # 2. Totals Row Formatting (Bold + Light Grey Background)
+        total_range = f"A{end_row}:{self._col_to_letter(num_cols)}{end_row}"
         format_cell_range(self.snapshot_worksheet, total_range, cellFormat(
             backgroundColor=color(0.95, 0.95, 0.95),
             textFormat=textFormat(bold=True)
         ))
         
-        # 4. Sub-headers (Category Names)
-        # Category names are in Column A. We'll bold any cell in Col A that is not empty.
+        # 3. Sub-headers (Category Names in Column A)
         category_range = f"A{start_row + 1}:A{end_row - 1}"
         format_cell_range(self.snapshot_worksheet, category_range, cellFormat(textFormat=textFormat(bold=True)))
         
-        # 5. Right-align all currency columns
-        # Main table currency starts from Col C (3) to num_main_cols
-        if num_main_cols >= 3:
-            currency_range = f"C{start_row + 1}:{self._col_to_letter(num_main_cols)}{end_row}"
+        # 4. Right-align all currency columns (Starting from Column C)
+        if num_cols >= 3:
+            currency_range = f"C{start_row + 1}:{self._col_to_letter(num_cols)}{end_row}"
             format_cell_range(self.snapshot_worksheet, currency_range, cellFormat(horizontalAlignment='RIGHT'))
-            
-        # Summary table value column
-        summary_val_col = summary_start_col + 2
-        summary_val_range = f"{self._col_to_letter(summary_val_col)}{start_row + 1}:{self._col_to_letter(summary_val_col)}{end_row}"
-        format_cell_range(self.snapshot_worksheet, summary_val_range, cellFormat(horizontalAlignment='RIGHT'))
 
     def _col_to_letter(self, n: int) -> str:
         """Converts column number to letter (1 -> A, 2 -> B, ..., 27 -> AA)"""

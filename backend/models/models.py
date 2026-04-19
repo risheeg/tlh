@@ -156,3 +156,27 @@ class StockPrice(Base):
     last_updated: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
     )
+
+
+class PortfolioHoldingEnriched(Base):
+    """
+    Unified view of lots and aggregate positions, enriched with price data.
+    This model is mapped to a database VIEW, not a table.
+    """
+    __tablename__ = "portfolio_holdings_enriched"
+
+    holding_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), index=True)
+    account_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("accounts.id"), index=True)
+    ticker: Mapped[str] = mapped_column(String)
+    quantity: Mapped[float] = mapped_column(Numeric(18, 8))
+    purchase_date: Mapped[date | None] = mapped_column(Date)
+    original_purchase_price: Mapped[float | None] = mapped_column(Numeric(18, 2))
+    cost_basis: Mapped[float | None] = mapped_column(Numeric(18, 2))
+    external_ref_id: Mapped[str | None] = mapped_column(String)
+    last_updated: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    holding_type: Mapped[str] = mapped_column(String)  # 'lot' or 'aggregate'
+    asset_type: Mapped[str] = mapped_column(String)  # 'Equity' or 'Cash'
+    current_price: Mapped[float | None] = mapped_column(Numeric(18, 2))
+    market_value: Mapped[float | None] = mapped_column(Numeric(18, 2))
+    price_last_updated: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
