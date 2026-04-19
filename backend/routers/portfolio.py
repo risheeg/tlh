@@ -1,6 +1,7 @@
 import uuid
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 from db.session import get_db
 from services.portfolio import get_portfolio_snapshot, generate_snapshot_rows, get_category_summary
@@ -35,7 +36,7 @@ def get_user_net_worth(user_id: uuid.UUID, db: Session = Depends(get_db)):
     }
 
 @router.post("/{user_id}/snapshot/sync")
-def sync_portfolio_snapshot(user_id: uuid.UUID, group_by: str = "type", db: Session = Depends(get_db)):
+def sync_portfolio_snapshot(user_id: uuid.UUID, group_by: str | None = None, db: Session = Depends(get_db)):
     """Appends daily snapshot to Google Sheets if it hasn't been synced today."""
     today_str = datetime.now().strftime("%-m/%-d/%Y")
     
@@ -63,3 +64,28 @@ def get_user_category_allocation(user_id: uuid.UUID, db: Session = Depends(get_d
             detail="Allocation summary unavailable: ensure stock prices are fresh."
         )
     return summary
+@router.get("/{user_id}/snapshot/view", response_class=HTMLResponse)
+def view_portfolio_snapshot(user_id: uuid.UUID, db: Session = Depends(get_db)):
+    """Returns a pure plain-text HTML view of the 3 different snapshot structures."""
+    views = ["custom", "type", "name"]
+    html_content = "<html><body>"
+    html_content += "PORTFOLIO SNAPSHOT REPORT - " + datetime.now().strftime("%Y-%m-%d %H:%M:%S") + "<br><br>"
+    
+    for view in views:
+        rows = generate_snapshot_rows(db, user_id, group_by=view)
+        if not rows:
+            continue
+            
+        html_content += f"Grouping: {view.capitalize()}<br>"
+        html_content += "<table border='1'>"
+        
+        for row in rows:
+            html_content += "<tr>"
+            for cell in row:
+                html_content += f"<td>{cell}</td>"
+            html_content += "</tr>"
+            
+        html_content += "</table><br><br>"
+        
+    html_content += "</body></html>"
+    return html_content

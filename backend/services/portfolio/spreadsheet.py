@@ -14,35 +14,50 @@ def _get_spreadsheet_config(db: Session, user_id, accounts: dict, group_by: str)
     category_order = []
     ticker_order = []
     
-    # 1. Determine Primary Mapping & Orders
+    # 1. Determine Grouping Mode
+    # Default to 'custom' for primary user, 'type' for everyone else if not specified
     is_primary_user = str(user_id) == "45a10eec-1398-483e-b7cd-be90fbd2c77c"
-    if is_primary_user:
+    mode = group_by or ("custom" if is_primary_user else "type")
+    
+    if mode == "custom":
         overrides_path = Path(__file__).resolve().parent.parent.parent / "core" / "account_overrides.json"
         if overrides_path.exists():
             with open(overrides_path, "r") as f:
                 overrides = json.load(f)
-            mapping = overrides.get("columns", [])
+            
+            raw_columns = overrides.get("columns", [])
+            # Only include columns that have at least one account owned by this user
+            user_account_names = {a.name for a in accounts.values()}
+            mapping = [
+                col for col in raw_columns 
+                if any(acc_name in user_account_names for acc_name in col["accounts"])
+            ]
+            
             category_order = overrides.get("category_order", [])
             ticker_order = overrides.get("ticker_order", [])
-    
-    if not mapping: # Default dynamic grouping
-        if group_by == "type":
-            for header, acc_type in [("Brokerage / Taxable", AccountType.taxable), ("Retirement", AccountType.retirement)]:
-                names = [a.name for a in accounts.values() if a.type == acc_type]
-                if names:
-                    mapping.append({"header": header, "accounts": names})
-        elif group_by == "name":
-            account_market_values = _get_account_market_values(db, user_id)
-            sorted_accounts = sorted(
-                accounts.values(), 
-                key=lambda account: account_market_values.get(str(account.id), Decimal(0)), 
-                reverse=True
-            )
-            mapping = [
-                {"header": account.name, "accounts": [account.name]} 
-                for account in sorted_accounts 
-                if account_market_values.get(str(account.id), Decimal(0)) > 0
-            ]
+            
+            # If custom mode results in no columns, fallback to 'type'
+            if not mapping:
+                mode = "type"
+
+    if mode == "type":
+        for header, acc_type in [("Brokerage / Taxable", AccountType.taxable), ("Retirement", AccountType.retirement)]:
+            names = [a.name for a in accounts.values() if a.type == acc_type]
+            if names:
+                mapping.append({"header": header, "accounts": names})
+                
+    elif mode == "name":
+        account_market_values = _get_account_market_values(db, user_id)
+        sorted_accounts = sorted(
+            accounts.values(), 
+            key=lambda account: account_market_values.get(str(account.id), Decimal(0)), 
+            reverse=True
+        )
+        mapping = [
+            {"header": account.name, "accounts": [account.name]} 
+            for account in sorted_accounts 
+            if account_market_values.get(str(account.id), Decimal(0)) > 0
+        ]
 
     # 2. Identify Cash and Unmapped accounts
     mapped_account_ids = {
@@ -117,11 +132,11 @@ def _get_ticker_balances(db: Session, user_id, config: SpreadsheetConfig, accoun
         ticker_balances=ticker_balances,
         ticker_expense_ratios=ticker_expense_ratios,
         cash_balances_per_column=cash_balances_per_column,
-        cash_accounts=cash_accounts,
-        unmapped_accounts=unmapped_accounts
+        cash_accounts=config.cash_accounts,
+        unmapped_accounts=config.unmapped_accounts
     )
 
-def generate_snapshot_rows(db: Session, user_id, group_by: str = "type") -> list[list] | None:
+def generate_snapshot_rows(db: Session, user_id, group_by: str | None = None) -> list[list] | None:
     """High-level orchestrator for generating spreadsheet rows."""
     from models.models import Account
     accounts = {str(account.id): account for account in db.query(Account).filter(Account.user_id == user_id).all()}
