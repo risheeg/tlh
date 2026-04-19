@@ -7,7 +7,7 @@ from decimal import Decimal
 
 from pydantic import BaseModel, Field
 
-from models.models import AccountType, LotStatus
+from models.models import AccountType, AssetType, LotStatus
 
 
 # ---------------------------------------------------------------------------
@@ -83,8 +83,9 @@ class AggregatePositionCreate(BaseModel):
     """Fields required to create or update a single aggregate position."""
     account_id: uuid.UUID
     ticker: str = Field(..., min_length=1, max_length=10)
-    quantity: Decimal = Field(..., gt=0, decimal_places=8)
-    cost_basis: Decimal | None = Field(default=None, gt=0, decimal_places=2)
+    quantity: Decimal = Field(..., decimal_places=8)
+    cost_basis: Decimal | None = Field(default=None, decimal_places=2)
+    asset_type: AssetType = AssetType.Equity
 
 
 class AggregatePositionUploadRequest(BaseModel):
@@ -100,6 +101,7 @@ class AggregatePositionResponse(BaseModel):
     ticker: str
     quantity: Decimal
     cost_basis: Decimal | None
+    asset_type: AssetType
     last_updated: datetime
 
     model_config = {"from_attributes": True}
@@ -118,3 +120,4 @@ class AggregatedPositionResponse(BaseModel):
     ticker: str
     quantity: Decimal
     cost_basis: Decimal | None = None
+    asset_type: AssetType = AssetType.Equity
