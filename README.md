@@ -84,6 +84,42 @@ uv run fastapi dev main.py
 - Swagger UI: [http://localhost:8000/docs](http://localhost:8000/docs)
 - Redoc: [http://localhost:8000/redoc](http://localhost:8000/redoc)
 
+## API Endpoints
+
+Base URL for local development: `http://localhost:8000`
+
+### Health
+
+- `GET /health` - Check that the API is running.
+
+### Accounts
+
+- `POST /accounts` - Create an account for a user. If the same `(user_id, name)` already exists, the existing account is returned.
+
+### Ingest
+
+- `POST /ingest/lots` - Batch upload tax lots for taxable accounts. Duplicate `external_ref_id` values are skipped.
+- `POST /ingest/positions` - Batch upsert aggregate positions by `(user_id, account_id, ticker)`.
+
+### Portfolio
+
+- `GET /portfolio/{user_id}/snapshot` - Return enriched holdings, total net worth, and the latest price timestamp.
+- `GET /portfolio/{user_id}/net-worth` - Return the user's current total net worth and last update timestamp.
+- `GET /portfolio/{user_id}/net-worth/history` - Return persisted net worth snapshots. Optional query params: `start_date`, `end_date`.
+- `PATCH /portfolio/{user_id}/net-worth/history/{snapshot_date}/comments` - Update comments for a net worth snapshot.
+- `POST /portfolio/{user_id}/snapshot/sync` - Append today's portfolio snapshot to Google Sheets if it has not already been synced. Optional query param: `group_by`.
+- `GET /portfolio/{user_id}/allocation` - Return asset allocation by category.
+- `GET /portfolio/{user_id}/snapshot/view` - Return an HTML snapshot report with multiple grouping views.
+
+### Prices
+
+- `POST /prices/sync` - Manually sync current stock prices from Google Sheets.
+
+### Corporate Actions
+
+- `POST /corporate-actions/stock-splits/preview` - Preview the impact of a stock split on stored lots and aggregate positions.
+- `POST /corporate-actions/stock-splits/apply` - Apply a stock split to stored lots and aggregate positions.
+
 ### Using the CLI
 
 Administrative tasks are also managed via the CLI from the `backend/` directory:
