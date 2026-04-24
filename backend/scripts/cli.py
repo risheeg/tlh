@@ -471,6 +471,95 @@ def cmd_tlh_check(args: argparse.Namespace) -> None:  # noqa: ARG001
 
 
 # ---------------------------------------------------------------------------
+# Subcommand: stock-splits
+# ---------------------------------------------------------------------------
+
+def _stock_split_payload(args: argparse.Namespace):
+    from datetime import date
+
+    import sys as _sys
+    _sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    from schemas.schemas import StockSplitCreate
+
+    try:
+        effective_date = date.fromisoformat(args.effective_date)
+    except ValueError:
+        sys.exit(f"Error: --effective-date '{args.effective_date}' must be YYYY-MM-DD.")
+
+    return StockSplitCreate(
+        ticker=args.ticker,
+        effective_date=effective_date,
+        split_numerator=args.numerator,
+        split_denominator=args.denominator,
+    )
+
+
+def _print_stock_split_result(result) -> None:
+    impact = result.impact
+    print(f"  ticker                       : {result.ticker}")
+    print(f"  effective_date               : {result.effective_date}")
+    print(f"  ratio                        : {result.split_numerator}:{result.split_denominator}")
+    print(f"  already_applied              : {result.already_applied}")
+    if hasattr(result, "applied"):
+        print(f"  applied                      : {result.applied}")
+        print(f"  stock_split_id               : {result.stock_split.id}")
+    print(f"  affected_lots                : {impact.affected_lots}")
+    print(f"  lot_quantity_before          : {impact.lot_quantity_before}")
+    print(f"  lot_quantity_after           : {impact.lot_quantity_after}")
+    print(f"  lot_cost_basis_before        : {impact.lot_cost_basis_before}")
+    print(f"  lot_cost_basis_after         : {impact.lot_cost_basis_after}")
+    print(f"  affected_aggregate_positions : {impact.affected_aggregate_positions}")
+    print(f"  aggregate_quantity_before    : {impact.aggregate_quantity_before}")
+    print(f"  aggregate_quantity_after     : {impact.aggregate_quantity_after}")
+    print(f"  aggregate_cost_basis_before  : {impact.aggregate_cost_basis_before}")
+    print(f"  aggregate_cost_basis_after   : {impact.aggregate_cost_basis_after}")
+
+
+def cmd_stock_splits_preview(args: argparse.Namespace) -> None:
+    """Preview the holdings affected by a stock split."""
+    import sys as _sys
+    _sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    from services.corporate_actions import (
+        StockSplitRatioConflictError,
+        preview_stock_split,
+    )
+
+    db = _get_db_session()
+    try:
+        try:
+            result = preview_stock_split(db, _stock_split_payload(args))
+        except StockSplitRatioConflictError as exc:
+            sys.exit(f"Error: {exc}")
+    finally:
+        db.close()
+
+    print("Stock split preview:")
+    _print_stock_split_result(result)
+
+
+def cmd_stock_splits_apply(args: argparse.Namespace) -> None:
+    """Apply a stock split to stored holdings."""
+    import sys as _sys
+    _sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    from services.corporate_actions import (
+        StockSplitRatioConflictError,
+        apply_stock_split,
+    )
+
+    db = _get_db_session()
+    try:
+        try:
+            result = apply_stock_split(db, _stock_split_payload(args))
+        except StockSplitRatioConflictError as exc:
+            sys.exit(f"Error: {exc}")
+    finally:
+        db.close()
+
+    print("Stock split apply result:")
+    _print_stock_split_result(result)
+
+
+# ---------------------------------------------------------------------------
 # Subcommand: users  (create a user directly in the DB)
 # ---------------------------------------------------------------------------
 
@@ -649,6 +738,33 @@ def build_parser() -> argparse.ArgumentParser:
 
     check_tlh_p = tlh_sub.add_parser("check", help="Identify lots with losses and notify users")
     check_tlh_p.set_defaults(func=cmd_tlh_check)
+
+    # ---- stock splits -------------------------------------------------------
+    splits_p = sub.add_parser("stock-splits", help="Preview or apply stock splits")
+    splits_sub = splits_p.add_subparsers(dest="action", metavar="<action>")
+    splits_sub.required = True
+
+    def add_split_args(split_parser: argparse.ArgumentParser) -> None:
+        split_parser.add_argument("--ticker", required=True, metavar="TICKER",
+                                  help="Ticker symbol (e.g. VUG)")
+        split_parser.add_argument("--effective-date", required=True, metavar="YYYY-MM-DD",
+                                  help="Split effective date")
+        split_parser.add_argument("--numerator", required=True, type=int, metavar="N",
+                                  help="New shares in the split ratio")
+        split_parser.add_argument("--denominator", required=True, type=int, metavar="D",
+                                  help="Old shares in the split ratio")
+
+    preview_split_p = splits_sub.add_parser(
+        "preview", help="Preview holdings affected by a stock split"
+    )
+    add_split_args(preview_split_p)
+    preview_split_p.set_defaults(func=cmd_stock_splits_preview)
+
+    apply_split_p = splits_sub.add_parser(
+        "apply", help="Apply a stock split to stored holdings"
+    )
+    add_split_args(apply_split_p)
+    apply_split_p.set_defaults(func=cmd_stock_splits_apply)
 
     return parser
 

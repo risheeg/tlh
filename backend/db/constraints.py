@@ -8,6 +8,19 @@ def ensure_db_constraints(engine) -> None:
     This runs safely on every startup (idempotent).
     """
     with engine.begin() as conn:
+        # Preserve per-share basis precision after stock splits.
+        conn.execute(
+            text(
+                """
+                ALTER TABLE IF EXISTS lots
+                ALTER COLUMN original_purchase_price TYPE NUMERIC(18, 8)
+                USING original_purchase_price::numeric,
+                ALTER COLUMN current_adjusted_basis TYPE NUMERIC(18, 8)
+                USING current_adjusted_basis::numeric;
+                """
+            )
+        )
+
         # Enforce: lots can only be associated to taxable accounts.
         conn.execute(
             text(

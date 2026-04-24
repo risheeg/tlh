@@ -34,3 +34,5 @@ htmlcov/
 .vscode/
 *.swp
 *.swo
+.codex
+backend.log
