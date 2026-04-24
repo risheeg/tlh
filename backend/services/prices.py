@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 from models.models import Lot, AggregatePosition, StockPrice, AssetType
+from services.price_history import backup_daily_stock_prices
 from services.sheets import sheets_service
 
 def sync_stock_prices(db: Session):
@@ -35,6 +36,7 @@ def sync_stock_prices(db: Session):
 
     # 4. Update Database
     updated_count = 0
+    updated_prices = {}
     for ticker, price in prices.items():
         if ticker in all_tickers:
             existing_price = db.get(StockPrice, ticker)
@@ -49,11 +51,14 @@ def sync_stock_prices(db: Session):
                 )
                 db.add(new_price)
             updated_count += 1
+            updated_prices[ticker] = price
     
     db.commit()
+    price_history = backup_daily_stock_prices(updated_prices)
     return {
         "added_to_sheet": added_to_sheet,
         "updated_in_db": updated_count,
         "total_tickers_requested": len(all_tickers),
+        "price_history": price_history,
         "warnings": warnings
     }

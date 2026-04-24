@@ -13,6 +13,7 @@ from sqlalchemy import (
     Integer,
     Numeric,
     String,
+    Text,
     UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import UUID, JSONB
@@ -239,6 +240,7 @@ class NetWorthSnapshot(Base):
     # Stores breakdown by category, account, asset_type:
     # { "categories": {...}, "accounts": {...}, "asset_types": {...} }
     breakdown: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    comments: Mapped[str | None] = mapped_column(Text, nullable=True)
     
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)

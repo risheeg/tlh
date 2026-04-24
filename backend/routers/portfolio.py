@@ -1,11 +1,19 @@
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 from db.session import get_db
 from services.portfolio import get_portfolio_snapshot, generate_snapshot_rows, get_category_summary
-from schemas.portfolio import PortfolioSnapshot
+from schemas.portfolio import (
+    NetWorthSnapshotCommentUpdate,
+    NetWorthSnapshotResponse,
+    PortfolioSnapshot,
+)
+from services.portfolio.history_service import (
+    get_net_worth_history,
+    update_net_worth_snapshot_comments,
+)
 from services.sheets import sheets_service
 
 router = APIRouter(prefix="/portfolio", tags=["portfolio"])
@@ -34,6 +42,45 @@ def get_user_net_worth(user_id: uuid.UUID, db: Session = Depends(get_db)):
         "net_worth": snapshot.total_net_worth, 
         "last_updated": snapshot.last_updated
     }
+
+
+@router.get(
+    "/{user_id}/net-worth/history",
+    response_model=list[NetWorthSnapshotResponse],
+)
+def get_user_net_worth_history(
+    user_id: uuid.UUID,
+    start_date: date | None = None,
+    end_date: date | None = None,
+    db: Session = Depends(get_db),
+):
+    """Returns persisted net worth snapshots, including optional comments."""
+    return get_net_worth_history(db, user_id, start_date=start_date, end_date=end_date)
+
+
+@router.patch(
+    "/{user_id}/net-worth/history/{snapshot_date}/comments",
+    response_model=NetWorthSnapshotResponse,
+)
+def update_user_net_worth_snapshot_comments(
+    user_id: uuid.UUID,
+    snapshot_date: date,
+    payload: NetWorthSnapshotCommentUpdate,
+    db: Session = Depends(get_db),
+):
+    """Updates the free-form comments for a net worth snapshot."""
+    snapshot = update_net_worth_snapshot_comments(
+        db,
+        user_id,
+        snapshot_date,
+        payload.comments,
+    )
+    if not snapshot:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Net worth snapshot not found for that date.",
+        )
+    return snapshot
 
 @router.post("/{user_id}/snapshot/sync")
 def sync_portfolio_snapshot(user_id: uuid.UUID, group_by: str | None = None, db: Session = Depends(get_db)):

@@ -2,10 +2,12 @@ from datetime import date, datetime, timezone
 from decimal import Decimal
 from collections import defaultdict
 from sqlalchemy.orm import Session
-from models.models import NetWorthSnapshot, PortfolioHoldingEnriched, Account
+from models.models import NetWorthSnapshot, Account
 from services.portfolio.service import get_portfolio_snapshot
 
-def create_net_worth_snapshot(db: Session, user_id) -> NetWorthSnapshot:
+def create_net_worth_snapshot(
+    db: Session, user_id, comments: str | None = None
+) -> NetWorthSnapshot:
     """
     Calculates current net worth and breakdown, then saves it to the database.
     """
@@ -58,6 +60,8 @@ def create_net_worth_snapshot(db: Session, user_id) -> NetWorthSnapshot:
     if existing:
         existing.total_net_worth = float(snapshot_data.total_net_worth)
         existing.breakdown = breakdown
+        if comments is not None:
+            existing.comments = comments
         existing.created_at = datetime.now(timezone.utc)
         db.commit()
         db.refresh(existing)
@@ -67,7 +71,8 @@ def create_net_worth_snapshot(db: Session, user_id) -> NetWorthSnapshot:
             user_id=user_id,
             snapshot_date=today,
             total_net_worth=float(snapshot_data.total_net_worth),
-            breakdown=breakdown
+            breakdown=breakdown,
+            comments=comments,
         )
         db.add(new_snapshot)
         db.commit()
@@ -86,3 +91,23 @@ def get_net_worth_history(db: Session, user_id, start_date: date = None, end_dat
         query = query.filter(NetWorthSnapshot.snapshot_date <= end_date)
         
     return query.order_by(NetWorthSnapshot.snapshot_date.asc()).all()
+
+
+def update_net_worth_snapshot_comments(
+    db: Session, user_id, snapshot_date: date, comments: str | None
+) -> NetWorthSnapshot | None:
+    snapshot = (
+        db.query(NetWorthSnapshot)
+        .filter(
+            NetWorthSnapshot.user_id == user_id,
+            NetWorthSnapshot.snapshot_date == snapshot_date,
+        )
+        .first()
+    )
+    if not snapshot:
+        return None
+
+    snapshot.comments = comments
+    db.commit()
+    db.refresh(snapshot)
+    return snapshot

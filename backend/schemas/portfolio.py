@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, date
 from decimal import Decimal
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from models.models import AssetType
 
 class EnrichedHolding(BaseModel):
@@ -28,3 +28,19 @@ class PortfolioSnapshot(BaseModel):
     holdings: list[EnrichedHolding]
     total_net_worth: Decimal
     last_updated: datetime | None
+
+
+class NetWorthSnapshotResponse(BaseModel):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    snapshot_date: date
+    total_net_worth: Decimal
+    breakdown: dict
+    comments: str | None = None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class NetWorthSnapshotCommentUpdate(BaseModel):
+    comments: str | None = Field(default=None, max_length=5000)
