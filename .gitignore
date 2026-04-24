@@ -36,3 +36,4 @@ htmlcov/
 *.swo
 .codex
 backend.log
+backend/var/

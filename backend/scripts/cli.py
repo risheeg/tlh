@@ -90,7 +90,12 @@ def _get_db_session():
     _sys.path.insert(0, str(_Path(__file__).resolve().parent.parent))
 
     from sqlalchemy.orm import Session  # noqa: E402 (local import)
+    from db.constraints import ensure_db_constraints  # noqa: E402
     from db.session import engine  # noqa: E402
+    from models.models import StockSplit  # noqa: E402
+
+    StockSplit.__table__.create(bind=engine, checkfirst=True)
+    ensure_db_constraints(engine)
 
     return Session(engine)
 
@@ -410,7 +415,7 @@ def cmd_prices_sync(args: argparse.Namespace) -> None:  # noqa: ARG001
 # Subcommand: history
 # ---------------------------------------------------------------------------
 
-def cmd_history_capture(args: argparse.Namespace) -> None:  # noqa: ARG001
+def cmd_history_capture(args: argparse.Namespace) -> None:
     """Capture a net worth snapshot for all users."""
     import sys as _sys
     _sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -428,12 +433,44 @@ def cmd_history_capture(args: argparse.Namespace) -> None:  # noqa: ARG001
         for user in users:
             try:
                 print(f"  Capturing for: {user.email}...")
-                create_net_worth_snapshot(db, user.id)
+                create_net_worth_snapshot(db, user.id, comments=args.comment)
             except Exception as e:
                 print(f"  FAILED for {user.email}: {e}")
         print("✓ Capture complete.")
     finally:
         db.close()
+
+
+def cmd_history_comment(args: argparse.Namespace) -> None:
+    """Update comments on a net worth snapshot for the active user."""
+    import sys as _sys
+    from datetime import date
+
+    _sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    from services.portfolio.history_service import update_net_worth_snapshot_comments
+
+    try:
+        snapshot_date = date.fromisoformat(args.date)
+    except ValueError:
+        sys.exit(f"Error: --date '{args.date}' must be YYYY-MM-DD.")
+
+    db = _get_db_session()
+    try:
+        snapshot = update_net_worth_snapshot_comments(
+            db,
+            _get_user_id(),
+            snapshot_date,
+            args.comment,
+        )
+    finally:
+        db.close()
+
+    if not snapshot:
+        sys.exit(f"Error: no net worth snapshot found for {snapshot_date}.")
+
+    print("✓ Snapshot comments updated.")
+    print(f"  date    : {snapshot.snapshot_date}")
+    print(f"  comments: {snapshot.comments or ''}")
 
 
 # ---------------------------------------------------------------------------
@@ -729,7 +766,19 @@ def build_parser() -> argparse.ArgumentParser:
     history_sub.required = True
 
     capture_history_p = history_sub.add_parser("capture", help="Capture a daily net worth snapshot")
+    capture_history_p.add_argument(
+        "--comment",
+        default=None,
+        help="Optional comments to store with today's snapshot",
+    )
     capture_history_p.set_defaults(func=cmd_history_capture)
+
+    comment_history_p = history_sub.add_parser(
+        "comment", help="Update comments on an existing net worth snapshot"
+    )
+    comment_history_p.add_argument("--date", required=True, metavar="YYYY-MM-DD")
+    comment_history_p.add_argument("--comment", required=True, help="Snapshot comments")
+    comment_history_p.set_defaults(func=cmd_history_comment)
 
     # ---- tlh ----------------------------------------------------------------
     tlh_p = sub.add_parser("tlh", help="Tax Loss Harvesting tools")
