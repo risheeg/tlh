@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
-from models.models import Lot, AggregatePosition, StockPrice
+from models.models import Lot, AggregatePosition, StockPrice, AssetType
 from services.sheets import sheets_service
 
 def sync_stock_prices(db: Session):
@@ -13,7 +13,14 @@ def sync_stock_prices(db: Session):
     """
     # 1. Collect tickers
     lot_tickers = db.query(Lot.ticker).distinct().all()
-    agg_tickers = db.query(AggregatePosition.ticker).distinct().all()
+    # Only equity aggregate positions should have external prices.
+    # Cash positions are valued at $1.00 via the enrichment view and should not pollute stock_prices.
+    agg_tickers = (
+        db.query(AggregatePosition.ticker)
+        .filter(AggregatePosition.asset_type == AssetType.Equity)
+        .distinct()
+        .all()
+    )
     
     all_tickers = {t[0] for t in lot_tickers} | {t[0] for t in agg_tickers}
     
