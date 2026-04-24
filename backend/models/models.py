@@ -10,6 +10,7 @@ from sqlalchemy import (
     DateTime,
     Enum,
     ForeignKey,
+    Integer,
     Numeric,
     String,
     UniqueConstraint,
@@ -103,8 +104,8 @@ class Lot(Base):
     )
     ticker: Mapped[str] = mapped_column(String, index=True, nullable=False)
     quantity: Mapped[float] = mapped_column(Numeric(18, 8), nullable=False)
-    original_purchase_price: Mapped[float] = mapped_column(Numeric(18, 2), nullable=False)
-    current_adjusted_basis: Mapped[float] = mapped_column(Numeric(18, 2), nullable=False)
+    original_purchase_price: Mapped[float] = mapped_column(Numeric(18, 8), nullable=False)
+    current_adjusted_basis: Mapped[float] = mapped_column(Numeric(18, 8), nullable=False)
     purchase_date: Mapped[date] = mapped_column(Date, nullable=False)
     status: Mapped[LotStatus] = mapped_column(
         Enum(LotStatus), nullable=False, default=LotStatus.active
@@ -158,6 +159,27 @@ class StockPrice(Base):
     )
 
 
+class StockSplit(Base):
+    """Corporate action recording a stock split applied to stored holdings."""
+    __tablename__ = "stock_splits"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    ticker: Mapped[str] = mapped_column(String, index=True, nullable=False)
+    effective_date: Mapped[date] = mapped_column(Date, nullable=False)
+    split_numerator: Mapped[int] = mapped_column(Integer, nullable=False)
+    split_denominator: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
+    )
+    applied_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint("ticker", "effective_date", name="uq_stock_split_ticker_effective_date"),
+    )
+
+
 
 class PortfolioAggregatedPosition(Base):
     """
@@ -189,7 +211,7 @@ class PortfolioHoldingEnriched(Base):
     account_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("accounts.id"), index=True)
     ticker: Mapped[str] = mapped_column(String)
     quantity: Mapped[float] = mapped_column(Numeric(18, 8))
-    original_purchase_price: Mapped[float | None] = mapped_column(Numeric(18, 2))
+    original_purchase_price: Mapped[float | None] = mapped_column(Numeric(18, 8))
     cost_basis: Mapped[float | None] = mapped_column(Numeric(18, 2))
     holding_type: Mapped[str] = mapped_column(String)  # 'lot' or 'aggregate'
     asset_type: Mapped[str] = mapped_column(String)  # 'Equity' or 'Cash'
