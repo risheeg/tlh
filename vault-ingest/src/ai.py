@@ -33,11 +33,11 @@ def _extract_response_text(response: dict) -> str:
 
 def _usage_neurons(response: dict, conversion_tokens: int) -> int:
     usage = response.get("usage") or {}
-    total = usage.get("total_tokens")
-    if total is None:
-        total = int(usage.get("prompt_tokens") or 0) + int(usage.get("completion_tokens") or 0)
-    total = int(total or 0)
-    return max(total, int(conversion_tokens or 0), 1)
+    llm_tokens = usage.get("total_tokens")
+    if llm_tokens is None:
+        llm_tokens = int(usage.get("prompt_tokens") or 0) + int(usage.get("completion_tokens") or 0)
+    llm_tokens = int(llm_tokens or 0)
+    return llm_tokens + int(conversion_tokens or 0)
 
 
 async def _document_to_text(env, key: str, content_type: str, array_buffer) -> tuple[str, int]:

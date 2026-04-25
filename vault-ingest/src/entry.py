@@ -94,7 +94,7 @@ class Default(WorkerEntrypoint):
 
         document_id = _document_id(key)
         category = classification["category"]
-        final_key = processed_key(config.processed_prefix, category, key)
+        final_key = processed_key(config.processed_prefix, category, document_id, key)
         json_key = parsed_key(config.parsed_prefix, category, document_id)
         md_key = markdown_key(config.parsed_prefix, category, document_id)
         

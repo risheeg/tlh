@@ -67,9 +67,9 @@ def is_plain_text(content_type: str, key: str) -> bool:
     )
 
 
-def processed_key(prefix: str, category: str, original_key: str) -> str:
+def processed_key(prefix: str, category: str, document_id: str, original_key: str) -> str:
     name = path_basename(original_key)
-    return f"{prefix.rstrip('/')}/{category}/{quote(name, safe='._-')}"
+    return f"{prefix.rstrip('/')}/{category}/{document_id}_{quote(name, safe='._-')}"
 
 
 def parsed_key(prefix: str, category: str, document_id: str) -> str:

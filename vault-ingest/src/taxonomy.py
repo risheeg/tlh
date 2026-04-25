@@ -181,6 +181,7 @@ DOCUMENT_SCHEMA = {
         "category",
         "subcategory",
         "summary",
+        "notes",
         "document_date",
         "issuer",
         "account_hint",
@@ -242,6 +243,8 @@ for (cat, sub), meta_props in METADATA_SCHEMAS.items():
             "additionalProperties": False
         }
     }
+    if meta_props:
+        then_properties["metadata"]["required"] = list(meta_props.keys())
     then_required = []
     
     if (cat, sub) in FULL_TEXT_SCHEMAS:
