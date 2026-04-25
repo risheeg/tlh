@@ -38,13 +38,22 @@ METADATA_SCHEMAS = {
         "ending_balance": {"type": "number"},
         "positions_count": {"type": "integer"},
     },
+    ("finance", "statement_credit_card"): {
+        "statement_period_start": {"type": "string", "format": "date"},
+        "statement_period_end": {"type": "string", "format": "date"},
+        "account_type": {"type": "string"},
+        "ending_balance": {"type": "number"},
+        "transaction_count": {"type": "integer"},
+        "rewards_earned": {"type": "number"},
+        "rewards_balance": {"type": "number"},
+    },
     **{("finance", sub): {
         "statement_period_start": {"type": "string", "format": "date"},
         "statement_period_end": {"type": "string", "format": "date"},
         "account_type": {"type": "string"},
         "ending_balance": {"type": "number"},
         "transaction_count": {"type": "integer"},
-    } for sub in ["statement_bank", "statement_credit_card", "statement_venmo", "statement_retirement", "statement_hsa"]},
+    } for sub in ["statement_bank", "statement_venmo", "statement_retirement", "statement_hsa"]},
     **{("finance", sub): {
         "account_type": {"type": "string"},
     } for sub in ["trade_confirmation", "loan_statement"]},
