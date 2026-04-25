@@ -1,0 +1,17 @@
+Mock HSA Receipt
+
+Merchant: Example Pharmacy
+Date: 2026-04-24
+Receipt Number: MOCK-12345
+
+Items:
+- Prescription medication refill, RX ending 4321, $18.50
+- Saline nasal spray, $7.99
+
+Subtotal: $26.49
+Tax: $0.00
+Total Paid: $26.49
+
+Payment Method: Visa ending 1111
+
+This is a synthetic test document for the vault ingest pipeline.

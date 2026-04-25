@@ -1,0 +1,46 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "vault-ingest",
+  "main": "src/entry.py",
+  "compatibility_date": "2026-04-25",
+  "compatibility_flags": ["python_workers", "disable_python_external_sdk"],
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  },
+  "vars": {
+    "R2_INBOX_PREFIX": "inbox/",
+    "R2_PROCESSED_PREFIX": "processed/",
+    "R2_PARSED_PREFIX": "parsed/",
+    "DAILY_NEURON_BUDGET": "9500",
+    "AI_MODEL": "@cf/google/gemma-4-26b-a4b-it"
+  },
+  "r2_buckets": [
+    {
+      "binding": "VAULT_BUCKET",
+      "bucket_name": "vault-ingest"
+    }
+  ],
+  "d1_databases": [
+    {
+      "binding": "VAULT_DB",
+      "database_name": "vault-ingest",
+      "database_id": "25bf8b6d-ee8d-473d-8707-98e3689c8c84",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "ai": {
+    "binding": "AI"
+  },
+  "queues": {
+    "consumers": [
+      {
+        "queue": "vault-ingest",
+        "max_batch_size": 1,
+        "max_batch_timeout": 30,
+        "max_retries": 3,
+        "dead_letter_queue": "vault-ingest-dlq"
+      }
+    ]
+  }
+}
