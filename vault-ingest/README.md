@@ -14,7 +14,14 @@ Cloudflare Python Worker pipeline for backing up, classifying, and indexing pers
 
 ## Cloudflare Resources
 
-Create the resources, then replace placeholders in `wrangler.jsonc`.
+The project is configured for these Cloudflare resources:
+
+- R2 bucket: `vault-ingest`
+- Queue: `vault-ingest`
+- Dead-letter queue: `vault-ingest-dlq`
+- D1 database: `vault-ingest`
+
+To recreate them in a new account:
 
 ```bash
 npx wrangler r2 bucket create vault-ingest
@@ -45,6 +52,18 @@ npx wrangler secret put NEON_CONNECTION_STRING
 ```
 
 The Python Worker derives Neon's SQL-over-HTTP `/sql` endpoint from the hostname in `NEON_CONNECTION_STRING` and sends the connection string in the `Neon-Connection-String` header, matching the Neon serverless driver's HTTP protocol without importing the JavaScript driver.
+
+## Manual Uploads
+
+Manual uploads are supported. Upload files to the R2 `inbox/` prefix; do not upload directly to `processed/` or `parsed/`.
+
+```bash
+npx wrangler r2 object put vault-ingest/inbox/example.pdf \
+  --file /path/to/example.pdf \
+  --remote
+```
+
+You can also upload from the Cloudflare dashboard by opening the `vault-ingest` R2 bucket and using an object key that starts with `inbox/`.
 
 ## Local Upload Cron
 
