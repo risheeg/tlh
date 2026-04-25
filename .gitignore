@@ -55,5 +55,9 @@ eStmt_2021-09-21.pdf
 eStmt_2021-10-21.pdf
 eStmt_2021-12-21.pdf
 
-# vault-ingest local fixtures (not shipped)
-vault-ingest/test/
+# vault-ingest: local PDFs, dumps, e2e output; track e2e runner in test/ only
+vault-ingest/test/*
+!vault-ingest/test/vault_e2e_test.py
+vault-ingest/test/last-e2e/
+# Cursor agent skills (local; paths reference repo files)
+vault-ingest/.cursor/

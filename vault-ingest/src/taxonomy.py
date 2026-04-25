@@ -350,7 +350,7 @@ def get_extraction_prompt(category: str, subcategory: str) -> str:
 
     rules_list = [
         "- Output ONLY the raw JSON object. No reasoning, no preamble, no markdown fences.",
-        "- Use YYYY-MM-DD for all dates. If a value is truly unknown, use null.",
+        "- Use YYYY-MM-DD for all dates. Top-level `notes` / `document_date` / `issuer` may be null if truly unknown. Inside `metadata` and `full_text_or_records` never use null: use 0 for unknown numbers, \"\" for unknown strings, and YYYY-MM-DD or \"\" for dates.",
         "- The top-level keys must be EXACTLY the ones shown above — do not add or rename any.",
         "- The `metadata` block must contain EXACTLY the keys listed above, nothing more and nothing less.",
         "- Do NOT put PDF file headers (PDFFormatVersion, Creator, Author, Producer, IsLinearized, etc.) anywhere in the output.",

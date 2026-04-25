@@ -4,12 +4,12 @@ version = "0.1.0"
 description = "Cloudflare Python Worker for personal document vault ingestion"
 requires-python = ">=3.12"
 dependencies = [
-    "workers-py>=1.90",
-    "jsonschema",
+    "workers-py>=1.9.0",
     "json-repair",
 ]
 
 [dependency-groups]
 dev = [
     "workers-runtime-sdk",
+    "jsonschema",
 ]

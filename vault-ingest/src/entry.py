@@ -1,8 +1,9 @@
 import uuid
+from urllib.parse import urlparse
 
 from js import Object
 from pyodide.ffi import to_js
-from workers import WorkerEntrypoint
+from workers import Request, Response, WorkerEntrypoint
 
 from ai import classify_document
 from taxonomy import FULL_TEXT_SCHEMAS, METADATA_SCHEMAS
@@ -18,6 +19,72 @@ from utils import (
     processed_key,
     utc_now_iso,
 )
+
+# When persisting to Neon / serving API consumers, avoid JSON `null` on optional
+# scalars: use "" / 0 so statements are easy to filter and UIs do not juggle nulls.
+def _default_for_meta_scalar(spec: dict) -> str | int | float:
+    typ = spec.get("type")
+    if isinstance(typ, list):
+        if "string" in typ:
+            return ""
+        if "number" in typ:
+            return 0.0
+        if "integer" in typ:
+            return 0
+        return ""
+    if typ == "number":
+        return 0.0
+    if typ == "integer":
+        return 0
+    return ""
+
+
+def _normalize_metadata_no_nulls(
+    category: str,
+    subcategory: str,
+    raw: dict,
+) -> dict:
+    spec_map = METADATA_SCHEMAS.get((category, subcategory), {})
+    out: dict = {}
+    for k, spec in spec_map.items():
+        v = raw.get(k)
+        if v is not None:
+            out[k] = v
+            continue
+        if isinstance(spec.get("type"), list) and "null" in spec.get("type", []):
+            out[k] = _default_for_meta_scalar({**spec, "type": [t for t in spec["type"] if t != "null"]})
+        else:
+            out[k] = _default_for_meta_scalar(spec)
+    return out
+
+
+def _neon_parsed_view(
+    category: str,
+    subcategory: str,
+    parsed_payload: dict,
+) -> dict:
+    raw_meta = parsed_payload.get("metadata") or {}
+    allowed = set(METADATA_SCHEMAS.get((category, subcategory), {}).keys())
+    spec_map = METADATA_SCHEMAS.get((category, subcategory), {})
+    clean_raw = {k: v for k, v in raw_meta.items() if k in allowed}
+    clean_meta = _normalize_metadata_no_nulls(category, subcategory, clean_raw)
+    out: dict = {
+        "schema_version": parsed_payload.get("schema_version"),
+        "summary": parsed_payload.get("summary") or "",
+        "notes": parsed_payload.get("notes") if parsed_payload.get("notes") is not None else "",
+        "document_date": (
+            parsed_payload.get("document_date")
+            if parsed_payload.get("document_date") is not None
+            else ""
+        ),
+        "issuer": parsed_payload.get("issuer") if parsed_payload.get("issuer") is not None else "",
+        "metadata": clean_meta,
+    }
+    # full_text_or_records stay on R2 (parsed .json) only; Neon keeps lean rows + counts.
+    ft = parsed_payload.get("full_text_or_records")
+    if (category, subcategory) in FULL_TEXT_SCHEMAS and isinstance(ft, list) and "transaction_count" in spec_map:
+        out["metadata"]["transaction_count"] = len(ft)
+    return out
 
 RETRY_IN_24_HOURS = 24 * 60 * 60
 
@@ -45,6 +112,60 @@ async def _put_json(bucket, key: str, payload: dict) -> None:
 
 
 class Default(WorkerEntrypoint):
+    async def fetch(self, request: Request) -> Response:
+        """Optional: trigger processing without R2 event→queue (for e2e / ops).
+
+        POST /__vault_ingest/trigger with JSON ``{"key": "inbox/foo.txt"}`` and header
+        ``X-Vault-Ingest-Secret`` equal to the ``VAULT_INGEST_HTTP_SECRET`` worker secret.
+        If the secret is unset, this path returns 404.
+        """
+        u = urlparse(request.url)
+        if u.path.rstrip("/") != "/__vault_ingest/trigger":
+            return Response("Not found", status=404)
+        if request.method != "POST":
+            return Response("Method not allowed", status=405)
+        secret = str(getattr(self.env, "VAULT_INGEST_HTTP_SECRET", "") or "").strip()
+        if not secret:
+            return Response("Not found", status=404)
+        got = ""
+        for name, val in request.headers.items():
+            if name.lower() == "x-vault-ingest-secret":
+                got = (val or "").strip()
+                break
+        if got != secret:
+            return Response("Unauthorized", status=401)
+        try:
+            data = await request.json()
+        except Exception:
+            return Response("Invalid JSON", status=400)
+        if not isinstance(data, dict):
+            return Response("JSON object required", status=400)
+        key = data.get("key")
+        if not key or not isinstance(key, str):
+            return Response.from_json({"error": "missing string key"}, status=400)
+        config = load_config(self.env)
+        if not key.startswith(config.inbox_prefix):
+            return Response.from_json(
+                {"error": f"key must be under {config.inbox_prefix!r}"},
+                status=400,
+            )
+        if not await has_budget(self.env.VAULT_DB, config.daily_neuron_budget):
+            return Response("Daily AI budget exhausted", status=503)
+        size = data.get("size")
+        if size is not None and not isinstance(size, (int, float)):
+            size = None
+        obj_part: dict = {"key": key}
+        if size is not None:
+            obj_part["size"] = int(size)
+        et = data.get("eventTime")
+        fake: dict = {"object": obj_part, "eventTime": et if isinstance(et, str) else None}
+        try:
+            await self._process_r2_event(self.env, config, fake, key)
+        except Exception as exc:
+            print(f"HTTP trigger process failed: {exc}")
+            return Response.from_json({"error": str(exc)}, status=500)
+        return Response.from_json({"ok": True, "key": key})
+
     async def queue(self, batch, env, ctx):
         worker_env = self.env
         config = load_config(worker_env)
@@ -80,10 +201,15 @@ class Default(WorkerEntrypoint):
         if obj is None:
             print(f"R2 object is missing; acknowledging stale event for {key}")
             return
+        try:
+            array_buffer = await obj.arrayBuffer()
+        except Exception:
+            # R2 can return JavaScript `null` (not equal to Python None).
+            print(f"R2 object is missing; acknowledging stale event for {key}")
+            return
 
         metadata = js_to_py(getattr(obj, "httpMetadata", None)) or {}
         content_type = content_type_for_key(key, metadata.get("contentType"))
-        array_buffer = await obj.arrayBuffer()
 
         classification = await classify_document(
             env,
@@ -118,25 +244,7 @@ class Default(WorkerEntrypoint):
             _to_js({"httpMetadata": {"contentType": content_type}}),
         )
 
-        # Build objective payload for Neon. Keep only canonical top-level fields
-        # plus whitelisted metadata keys.
-        allowed_meta_keys = set(METADATA_SCHEMAS.get((category, subcategory), {}).keys())
-        raw_metadata = parsed_payload.get("metadata") or {}
-        neon_metadata = {k: v for k, v in raw_metadata.items() if k in allowed_meta_keys}
-
-        full_text = parsed_payload.get("full_text_or_records")
-        if full_text and (category, subcategory) in FULL_TEXT_SCHEMAS:
-            if isinstance(full_text, list):
-                neon_metadata["transaction_count"] = len(full_text)
-
-        neon_payload: dict = {
-            "schema_version": parsed_payload.get("schema_version"),
-            "summary":       parsed_payload.get("summary"),
-            "notes":         parsed_payload.get("notes"),
-            "document_date": parsed_payload.get("document_date"),
-            "issuer":        parsed_payload.get("issuer"),
-            "metadata":      neon_metadata,
-        }
+        neon_payload = _neon_parsed_view(category, subcategory, parsed_payload)
 
         now = utc_now_iso()
         await insert_document(

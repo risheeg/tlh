@@ -61,14 +61,32 @@ def _repair_json_func():
     return import_module("json_repair").repair_json
 
 
-@lru_cache(maxsize=1)
-def _draft7_validator_cls():
-    return import_module("jsonschema").Draft7Validator
+def is_json_null(value) -> bool:
+    """``None`` or JavaScript null from the Workers (Pyodide) runtime."""
+    if value is None:
+        return True
+    try:
+        from js import null as js_null
+
+        return value is js_null
+    except Exception:
+        return type(value).__name__ in ("JsNull", "jsnull", "JSNull")
+
+
+def deep_coerce_jsnull(value):
+    """Recursively replace Pyodide ``js`` null with Python ``None`` (JSON null)."""
+    if is_json_null(value):
+        return None
+    if isinstance(value, dict):
+        return {k: deep_coerce_jsnull(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [deep_coerce_jsnull(x) for x in value]
+    return value
 
 
 def parse_json_response(response_text: str | dict | list):
     if isinstance(response_text, (dict, list)):
-        return response_text
+        return deep_coerce_jsnull(response_text)
 
     if not isinstance(response_text, str):
         return response_text
@@ -78,7 +96,7 @@ def parse_json_response(response_text: str | dict | list):
 
     # 1) Happy path.
     try:
-        return json.loads(response_text)
+        return deep_coerce_jsnull(json.loads(response_text))
     except json.JSONDecodeError:
         pass
 
@@ -86,7 +104,7 @@ def parse_json_response(response_text: str | dict | list):
     candidate = _extract_balanced_json_object(response_text)
     if candidate:
         try:
-            return json.loads(candidate)
+            return deep_coerce_jsnull(json.loads(candidate))
         except json.JSONDecodeError:
             pass
 
@@ -102,7 +120,7 @@ def parse_json_response(response_text: str | dict | list):
         try:
             if repair_json is None:
                 continue
-            return repair_json(target, return_objects=True)
+            return deep_coerce_jsnull(repair_json(target, return_objects=True))
         except Exception:
             continue
 
@@ -127,28 +145,140 @@ def strip_document_metadata_block(text: str) -> str:
     return _METADATA_BLOCK_RE.sub("", text, count=1)
 
 
-def _error_json_path(error) -> str:
-    path = "$"
-    for part in error.path:
+_DATE_RE = re.compile(r"^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])$")
+
+
+def _is_number(value) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool)
+
+
+def _type_ok(value, t: str) -> bool:
+    if t == "string":
+        return isinstance(value, str)
+    if t == "number":
+        return _is_number(value)
+    if t == "integer":
+        if isinstance(value, bool):
+            return False
+        if isinstance(value, int):
+            return True
+        if isinstance(value, float) and value == int(value):
+            return True
+        return False
+    if t == "boolean":
+        return isinstance(value, bool)
+    if t == "object":
+        return isinstance(value, dict)
+    if t == "array":
+        return isinstance(value, list)
+    if t == "null":
+        return is_json_null(value)
+    return False
+
+
+def _error_json_path(path_parts: list) -> str:
+    s = "$"
+    for part in path_parts:
         if isinstance(part, int):
-            path += f"[{part}]"
+            s += f"[{part}]"
         else:
-            path += f".{part}"
-    return path
+            s += f".{part}"
+    return s
+
+
+def _format_ok_for_string(value, schema: dict) -> bool:
+    if schema.get("format") != "date" or not isinstance(value, str):
+        return True
+    return bool(_DATE_RE.match(value))
+
+
+def _iter_extraction_schema_errors(  # noqa: C901
+    value,
+    schema: dict,
+    path: list,
+) -> list[str]:
+    """Subset of JSON Schema draft-7 used by taxonomy: type unions, object props,
+    arrays, additionalProperties, required, enum, and format: date. No $ref/oneOf.
+    """
+    p = _error_json_path(path)
+    if "enum" in schema and value not in schema["enum"]:
+        return [f"{p}: {value!r} is not one of {schema['enum']!r}"]
+
+    typ = schema.get("type")
+    if typ is None:
+        return []
+
+    if isinstance(typ, list):
+        for t in typ:
+            if t == "null" and is_json_null(value):
+                return []
+        for t in typ:
+            if t == "null":
+                continue
+            if not _type_ok(value, t):
+                continue
+            if t == "string" and not _format_ok_for_string(value, schema):
+                return [f"{p}: {value!r} is not a valid date string (expected YYYY-MM-DD)"]
+            return []
+        return [f"{p}: {value!r} is not of type {typ!r}"]
+
+    if not _type_ok(value, typ):
+        return [f"{p}: {value!r} is not of type {typ!r}"]
+
+    if typ == "string" and not _format_ok_for_string(value, schema):
+        return [f"{p}: {value!r} is not a valid date string (expected YYYY-MM-DD)"]
+
+    if typ == "object" and isinstance(value, dict):
+        out: list[str] = []
+        for key in schema.get("required") or ():
+            if key not in value:
+                p2 = path + [key]
+                out.append(f"{_error_json_path(p2)}: {key!r} is a required property")
+        add_ok = bool(schema.get("additionalProperties", True))
+        props = schema.get("properties") or {}
+        for key in value:
+            if key in props or add_ok:
+                continue
+            p2 = path + [key]
+            out.append(f"{_error_json_path(p2)}: additional property {key!r} is not allowed")
+        for key, sub in props.items():
+            if key in value:
+                out.extend(
+                    _iter_extraction_schema_errors(
+                        value[key],
+                        sub,
+                        path + [key],
+                    )
+                )
+        return out
+
+    if typ == "array" and isinstance(value, list):
+        out = []
+        items = schema.get("items")
+        if items is not None:
+            for i, el in enumerate(value):
+                out.extend(
+                    _iter_extraction_schema_errors(
+                        el,
+                        items,
+                        path + [i],
+                    )
+                )
+        return out
+
+    return []
 
 
 def validate_extraction(payload, schema: dict, path: str = "$") -> list[str]:
-    """Validate extraction output with jsonschema and return readable errors."""
-    del path  # kept for backward-compatible signature
-    try:
-        Draft7Validator = _draft7_validator_cls()
-    except ModuleNotFoundError as exc:
-        raise RuntimeError(
-            "Missing dependency 'jsonschema'. Run with dependencies from pyproject.toml."
-        ) from exc
-    validator = Draft7Validator(schema, format_checker=Draft7Validator.FORMAT_CHECKER)
-    errors = sorted(validator.iter_errors(payload), key=lambda e: list(e.path))
-    return [f"{_error_json_path(err)}: {err.message}" for err in errors]
+    """Validate extraction output against a JSON object schema; return error strings."""
+    del path
+    if not isinstance(schema, dict):
+        return ["$: schema must be a JSON object"]
+    return _iter_extraction_schema_errors(
+        payload,
+        schema,
+        [],
+    )
 
 
 def path_basename(key: str) -> str:
