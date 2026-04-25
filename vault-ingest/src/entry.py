@@ -12,6 +12,7 @@ from utils import (
     content_type_for_key,
     js_to_py,
     json_dumps,
+    markdown_key,
     parsed_key,
     processed_key,
     utc_now_iso,
@@ -95,14 +96,27 @@ class Default(WorkerEntrypoint):
         category = classification["category"]
         final_key = processed_key(config.processed_prefix, category, key)
         json_key = parsed_key(config.parsed_prefix, category, document_id)
+        md_key = markdown_key(config.parsed_prefix, category, document_id)
+        
         parsed_payload = classification["parsed_json"]
+        parsed_payload.pop("category", None)
+        parsed_payload.pop("subcategory", None)
 
         await _put_json(bucket, json_key, parsed_payload)
+        
+        document_text = classification["document_text"]
+        await bucket.put(
+            md_key,
+            document_text,
+            _to_js({"httpMetadata": {"contentType": "text/markdown"}}),
+        )
         await bucket.put(
             final_key,
             array_buffer,
             _to_js({"httpMetadata": {"contentType": content_type}}),
         )
+        
+        parsed_payload.pop("full_text_or_records", None)
 
         now = utc_now_iso()
         await insert_document(
@@ -117,6 +131,7 @@ class Default(WorkerEntrypoint):
                 "r2_original_path": key,
                 "r2_file_path": final_key,
                 "r2_parsed_json_path": json_key,
+                "r2_markdown_path": md_key,
                 "file_size": (body.get("object") or {}).get("size"),
                 "ai_model": config.ai_model,
                 "parsed_json": parsed_payload,

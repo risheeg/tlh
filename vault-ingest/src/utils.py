@@ -74,3 +74,7 @@ def processed_key(prefix: str, category: str, original_key: str) -> str:
 
 def parsed_key(prefix: str, category: str, document_id: str) -> str:
     return f"{prefix.rstrip('/')}/{category}/{document_id}.json"
+
+
+def markdown_key(prefix: str, category: str, document_id: str) -> str:
+    return f"{prefix.rstrip('/')}/{category}/{document_id}.md"

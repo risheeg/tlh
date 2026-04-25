@@ -266,11 +266,12 @@ class Document(Base):
     category: Mapped[str] = mapped_column(String, index=True, nullable=False)
     subcategory: Mapped[str | None] = mapped_column(String, index=True, nullable=True)
     account_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), index=True, nullable=True
+        UUID(as_uuid=True), ForeignKey("accounts.id"), index=True, nullable=True
     )
     r2_original_path: Mapped[str] = mapped_column(Text, nullable=False)
     r2_file_path: Mapped[str] = mapped_column(Text, nullable=False)
     r2_parsed_json_path: Mapped[str] = mapped_column(Text, nullable=False)
+    r2_markdown_path: Mapped[str | None] = mapped_column(Text, nullable=True)
     file_size: Mapped[int | None] = mapped_column(Integer, nullable=True)
     ai_model: Mapped[str] = mapped_column(String, nullable=False)
     parsed_json: Mapped[dict] = mapped_column(JSONB, nullable=False)

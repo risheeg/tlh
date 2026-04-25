@@ -15,6 +15,7 @@ INSERT INTO vault_ingest.documents (
     r2_original_path,
     r2_file_path,
     r2_parsed_json_path,
+    r2_markdown_path,
     file_size,
     ai_model,
     parsed_json
@@ -31,7 +32,8 @@ VALUES (
     $9,
     $10,
     $11,
-    $12::jsonb
+    $12,
+    $13::jsonb
 )
 ON CONFLICT (id) DO UPDATE SET
     upload_date = excluded.upload_date,
@@ -42,6 +44,7 @@ ON CONFLICT (id) DO UPDATE SET
     r2_original_path = excluded.r2_original_path,
     r2_file_path = excluded.r2_file_path,
     r2_parsed_json_path = excluded.r2_parsed_json_path,
+    r2_markdown_path = excluded.r2_markdown_path,
     file_size = excluded.file_size,
     ai_model = excluded.ai_model,
     parsed_json = excluded.parsed_json
@@ -98,6 +101,7 @@ async def insert_document(connection_string: str, document: dict) -> None:
             document["r2_original_path"],
             document["r2_file_path"],
             document["r2_parsed_json_path"],
+            document.get("r2_markdown_path"),
             document.get("file_size"),
             document["ai_model"],
             json_dumps(document["parsed_json"]),

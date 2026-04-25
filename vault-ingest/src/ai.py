@@ -98,9 +98,17 @@ async def classify_document(env, model: str, key: str, content_type: str, array_
         parsed["category"] = "other"
         parsed["subcategory"] = parsed.get("subcategory") or category
 
+    usage = response.get("usage") or {}
+    llm_tokens = usage.get("total_tokens")
+    if llm_tokens is None:
+        llm_tokens = int(usage.get("prompt_tokens") or 0) + int(usage.get("completion_tokens") or 0)
+    
+    print(f"[{path_basename(key)}] AI Neurons Used - Docling (Conversion): {conversion_tokens} | LLM Classification: {llm_tokens}")
+
     return {
         "parsed_json": parsed,
         "category": parsed["category"],
         "subcategory": parsed.get("subcategory"),
         "neurons_consumed": _usage_neurons(response, conversion_tokens),
+        "document_text": document_text,
     }
