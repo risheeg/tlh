@@ -1,5 +1,12 @@
+import os
+from pathlib import Path
+
 from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+BACKEND_ROOT = Path(__file__).resolve().parents[1]
+ENV_FILE = Path(os.getenv("TLH_ENV_FILE", BACKEND_ROOT / ".env")).expanduser()
 
 
 class SMTPSettings(BaseModel):
@@ -18,7 +25,7 @@ class Settings(BaseSettings):
     # Google Sheets integration
     google_sheet_id: str
     portfolio_snapshot_sheet_id: str
-    google_application_credentials: str = "../google_credentials.json"
+    google_application_credentials: str = str(BACKEND_ROOT / "google_credentials.json")
 
     # Email SMTP Credentials (parsed from env)
     smtp_host: str
@@ -43,7 +50,7 @@ class Settings(BaseSettings):
         )
 
     model_config = SettingsConfigDict(
-        env_file="../.env",
+        env_file=str(ENV_FILE),
         env_file_encoding="utf-8",
         extra="ignore",
     )

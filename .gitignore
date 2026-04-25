@@ -1,6 +1,10 @@
-# Environment
+# Environment / credentials
 .env
+backend/.env
+google_credential.json
 google_credentials.json
+backend/google_credential.json
+backend/google_credentials.json
 
 # Python
 __pycache__/
@@ -36,4 +40,5 @@ htmlcov/
 *.swo
 .codex
 backend.log
+backend/backend.log
 backend/var/
