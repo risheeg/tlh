@@ -1,9 +1,11 @@
 
 import os
+from pathlib import Path
+
 from sqlalchemy import create_engine, text
 from dotenv import load_dotenv
 
-load_dotenv("../.env")
+load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
 database_url = os.getenv("NEON_DB_HOST")
 if not database_url:

@@ -37,15 +37,15 @@ This application provides users with a real-time view of their financial health 
 1. **Clone the repository**:
    ```bash
    git clone <repository-url>
-   cd tlh
+   cd tlh/backend
    ```
 
 2. **Set up environment variables**:
-   Create a `.env` file in the root directory with the following configuration:
+   Create a `.env` file in this directory with the following configuration:
    ```env
    # Google Sheets Configuration
    GOOGLE_SHEET_ID=your_google_sheet_id
-   GOOGLE_APPLICATION_CREDENTIALS=/path/to/your/google_credentials.json
+   GOOGLE_APPLICATION_CREDENTIALS=/absolute/path/to/tlh/backend/google_credentials.json
 
    # Neon Database URL
    NEON_DB_HOST=postgresql://user:password@host/neondb?sslmode=require
@@ -69,11 +69,7 @@ This application provides users with a real-time view of their financial health 
 
 ### Running the Application
 
-All commands should be run from the `backend/` directory:
-
-```bash
-cd backend
-```
+All commands should be run from this `backend/` directory:
 
 **Start the FastAPI Dev Server**:
 ```bash
@@ -122,14 +118,20 @@ Base URL for local development: `http://localhost:8000`
 
 ### Using the CLI
 
-Administrative tasks are also managed via the CLI from the `backend/` directory:
+Administrative tasks are also managed via the CLI from this directory:
 ```bash
 # View available commands
-uv run tlh --help
+tlh --help
 
 # Example: Create a new account
-uv run python scripts/cli.py accounts create --name "Personal Wealth" --type taxable
+tlh accounts create --name "Personal Wealth" --type taxable
+
+# Show local API links in logical order
+tlh links          # main: http://127.0.0.1:8001
+tlh links devbox   # devbox: http://localhost:8000
 ```
+
+The links command fills `{user_id}` path values from the active CLI user set with `tlh auth set-user`.
 
 ## Operations
 
@@ -137,18 +139,18 @@ uv run python scripts/cli.py accounts create --name "Personal Wealth" --type tax
 
 Stock splits are modeled as corporate actions and applied to stored holdings. A forward split multiplies share quantities and divides per-share basis for taxable lots; aggregate position `cost_basis` stays unchanged because it is a total basis.
 
-Preview and apply a split from the `backend/` directory:
+Preview and apply a split from this directory:
 
 ```bash
-uv run python scripts/cli.py stock-splits preview --ticker VUG --effective-date 2026-04-21 --numerator 6 --denominator 1
-uv run python scripts/cli.py stock-splits apply --ticker VUG --effective-date 2026-04-21 --numerator 6 --denominator 1
+tlh stock-splits preview --ticker VUG --effective-date 2026-04-21 --numerator 6 --denominator 1
+tlh stock-splits apply --ticker VUG --effective-date 2026-04-21 --numerator 6 --denominator 1
 ```
 
 The command records the split and is idempotent, so reapplying the same ticker/date/ratio will not double-adjust holdings.
 
 ### Price History Archive
 
-`stock_prices` stores only the latest quote in Neon. During each price refresh, the refreshed prices are also written to a local SQLite archive at `backend/var/stock_price_history.sqlite3` by default. The archive stores at most one row per ticker per UTC day and is ignored by git.
+`stock_prices` stores only the latest quote in Neon. During each price refresh, the refreshed prices are also written to a local SQLite archive at `var/stock_price_history.sqlite3` by default. The archive stores at most one row per ticker per UTC day and is ignored by git.
 
 Use `TLH_PRICE_HISTORY_DB_PATH` to place the archive elsewhere on the instance.
 
@@ -157,8 +159,8 @@ Use `TLH_PRICE_HISTORY_DB_PATH` to place the archive elsewhere on the instance.
 Net worth snapshots support optional free-form `comments` for life events and other context. Add comments while capturing today's snapshot, or update an existing snapshot by date:
 
 ```bash
-uv run python scripts/cli.py history capture --comment "Moved apartments"
-uv run python scripts/cli.py history comment --date 2026-04-24 --comment "VUG split applied"
+tlh history capture --comment "Moved apartments"
+tlh history comment --date 2026-04-24 --comment "VUG split applied"
 ```
 
 The API also exposes snapshot history at `GET /portfolio/{user_id}/net-worth/history` and comment updates at `PATCH /portfolio/{user_id}/net-worth/history/{snapshot_date}/comments`.
@@ -166,18 +168,16 @@ The API also exposes snapshot history at `GET /portfolio/{user_id}/net-worth/his
 ## 📁 Project Structure
 
 ```text
-tlh/
-├── backend/
-│   ├── core/           # Configuration and core logic
-│   ├── db/             # Database connection and session management
-│   ├── models/         # SQLAlchemy database models
-│   ├── routers/        # FastAPI route handlers (API endpoints)
-│   ├── schemas/        # Pydantic models for request/response validation
-│   ├── scripts/        # CLI tools and utility scripts
-│   ├── services/       # Business logic and external integrations
-│   └── main.py         # Application entry point
-├── AGENTS.md           # Project rules and guidelines
-├── SCHEMA.md           # Database schema documentation
+backend/
+├── AGENTS.md           # Backend project rules and guidelines
+├── core/               # Configuration and core logic
+├── db/                 # Database connection and session management
+├── models/             # SQLAlchemy database models
+├── routers/            # FastAPI route handlers (API endpoints)
+├── schemas/            # Pydantic models for request/response validation
+├── scripts/            # CLI tools and utility scripts
+├── services/           # Business logic and external integrations
+├── main.py             # Application entry point
 └── README.md           # You are here!
 ```
 
