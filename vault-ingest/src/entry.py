@@ -5,6 +5,7 @@ from pyodide.ffi import to_js
 from workers import WorkerEntrypoint
 
 from ai import classify_document
+from taxonomy import FULL_TEXT_SCHEMAS, METADATA_SCHEMAS
 from budget import add_neurons_consumed, has_budget
 from config import load_config
 from db import insert_document
@@ -86,7 +87,7 @@ class Default(WorkerEntrypoint):
 
         classification = await classify_document(
             env,
-            config.ai_model,
+            config,
             key,
             content_type,
             array_buffer,
@@ -94,16 +95,17 @@ class Default(WorkerEntrypoint):
 
         document_id = _document_id(key)
         category = classification["category"]
+        subcategory = classification["subcategory"]
         final_key = processed_key(config.processed_prefix, category, document_id, key)
-        json_key = parsed_key(config.parsed_prefix, category, document_id)
-        md_key = markdown_key(config.parsed_prefix, category, document_id)
-        
+        json_key = parsed_key(config.parsed_prefix, category, document_id, key)
+        md_key = markdown_key(config.parsed_prefix, category, document_id, key)
+
         parsed_payload = classification["parsed_json"]
-        parsed_payload.pop("category", None)
-        parsed_payload.pop("subcategory", None)
+        # Version is controlled by application code (not model output).
+        parsed_payload["schema_version"] = 1
 
         await _put_json(bucket, json_key, parsed_payload)
-        
+
         document_text = classification["document_text"]
         await bucket.put(
             md_key,
@@ -115,8 +117,26 @@ class Default(WorkerEntrypoint):
             array_buffer,
             _to_js({"httpMetadata": {"contentType": content_type}}),
         )
-        
-        parsed_payload.pop("full_text_or_records", None)
+
+        # Build objective payload for Neon. Keep only canonical top-level fields
+        # plus whitelisted metadata keys.
+        allowed_meta_keys = set(METADATA_SCHEMAS.get((category, subcategory), {}).keys())
+        raw_metadata = parsed_payload.get("metadata") or {}
+        neon_metadata = {k: v for k, v in raw_metadata.items() if k in allowed_meta_keys}
+
+        full_text = parsed_payload.get("full_text_or_records")
+        if full_text and (category, subcategory) in FULL_TEXT_SCHEMAS:
+            if isinstance(full_text, list):
+                neon_metadata["transaction_count"] = len(full_text)
+
+        neon_payload: dict = {
+            "schema_version": parsed_payload.get("schema_version"),
+            "summary":       parsed_payload.get("summary"),
+            "notes":         parsed_payload.get("notes"),
+            "document_date": parsed_payload.get("document_date"),
+            "issuer":        parsed_payload.get("issuer"),
+            "metadata":      neon_metadata,
+        }
 
         now = utc_now_iso()
         await insert_document(
@@ -126,20 +146,21 @@ class Default(WorkerEntrypoint):
                 "upload_date": body.get("eventTime") or now,
                 "processed_at": now,
                 "category": category,
-                "subcategory": classification.get("subcategory"),
+                "subcategory": subcategory,
                 "account_id": None,
                 "r2_original_path": key,
                 "r2_file_path": final_key,
                 "r2_parsed_json_path": json_key,
                 "r2_markdown_path": md_key,
                 "file_size": (body.get("object") or {}).get("size"),
-                "ai_model": config.ai_model,
-                "parsed_json": parsed_payload,
+                "ai_model": f"{config.stage1_model} + {config.stage2_model}",
+                "parsed_json": neon_payload,
             },
         )
 
         await add_neurons_consumed(
             env.VAULT_DB,
             classification["neurons_consumed"],
+            usage_breakdown=classification.get("usage_breakdown"),
         )
         await bucket.delete(key)

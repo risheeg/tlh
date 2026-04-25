@@ -1,3 +1,6 @@
+import json
+
+
 CATEGORIES = (
     "tax",
     "medical",
@@ -32,6 +35,8 @@ METADATA_SCHEMAS = {
 
     # 3. Finance
     ("finance", "statement_brokerage"): {
+        "account_number": {"type": "string"},
+        "account_hint": {"type": ["string", "null"]},
         "statement_period_start": {"type": "string", "format": "date"},
         "statement_period_end": {"type": "string", "format": "date"},
         "account_type": {"type": "string"},
@@ -39,6 +44,8 @@ METADATA_SCHEMAS = {
         "positions_count": {"type": "integer"},
     },
     ("finance", "statement_credit_card"): {
+        "account_number": {"type": "string"},
+        "account_hint": {"type": ["string", "null"]},
         "statement_period_start": {"type": "string", "format": "date"},
         "statement_period_end": {"type": "string", "format": "date"},
         "account_type": {"type": "string"},
@@ -48,6 +55,8 @@ METADATA_SCHEMAS = {
         "rewards_balance": {"type": "number"},
     },
     **{("finance", sub): {
+        "account_number": {"type": "string"},
+        "account_hint": {"type": ["string", "null"]},
         "statement_period_start": {"type": "string", "format": "date"},
         "statement_period_end": {"type": "string", "format": "date"},
         "account_type": {"type": "string"},
@@ -55,6 +64,8 @@ METADATA_SCHEMAS = {
         "transaction_count": {"type": "integer"},
     } for sub in ["statement_bank", "statement_venmo", "statement_retirement", "statement_hsa"]},
     **{("finance", sub): {
+        "account_number": {"type": "string"},
+        "account_hint": {"type": ["string", "null"]},
         "account_type": {"type": "string"},
     } for sub in ["trade_confirmation", "loan_statement"]},
 
@@ -182,100 +193,68 @@ for sub in ["statement_bank", "statement_credit_card", "statement_venmo", "state
     FULL_TEXT_SCHEMAS[("finance", sub)] = _bank_transactions_schema
 
 
+_UNIVERSAL_PROPS: dict[str, dict] = {
+    "summary":        {"type": "string"},
+    "notes":          {"type": ["string", "null"]},
+    "document_date":  {"type": ["string", "null"], "format": "date"},
+    "issuer":         {"type": ["string", "null"]},
+}
+
+_UNIVERSAL_REQUIRED: tuple[str, ...] = (
+    "summary", "notes", "document_date", "issuer",
+)
+
+
+def get_targeted_schema(category: str, subcategory: str) -> dict:
+    """Build a tight JSON schema for a specific (category, subcategory) pair.
+
+    Keep shared top-level fields stable across all categories (`summary`,
+    `notes`, `document_date`, `issuer`) and push
+    category-specific attributes into `metadata`.
+    """
+    properties: dict[str, dict] = dict(_UNIVERSAL_PROPS)
+    required: list[str] = list(_UNIVERSAL_REQUIRED)
+
+    meta_props = METADATA_SCHEMAS.get((category, subcategory), {})
+    properties["metadata"] = {
+        "type": "object",
+        "properties": meta_props,
+        "required": list(meta_props.keys()),
+        "additionalProperties": False,
+    }
+    required.append("metadata")
+
+    if (category, subcategory) in FULL_TEXT_SCHEMAS:
+        properties["full_text_or_records"] = FULL_TEXT_SCHEMAS[(category, subcategory)]
+        required.append("full_text_or_records")
+
+    return {
+        "type": "object",
+        "properties": properties,
+        "required": required,
+        "additionalProperties": False,
+    }
+
+
+# Original big schema for Step 1 (Classification)
 DOCUMENT_SCHEMA = {
     "type": "object",
     "additionalProperties": False,
     "required": [
-        "schema_version",
         "category",
         "subcategory",
-        "summary",
-        "notes",
-        "document_date",
-        "issuer",
-        "account_hint",
-        "amounts",
-        "metadata",
-        "confidence",
     ],
     "properties": {
-        "schema_version": {"type": "integer", "enum": [1]},
         "category": {"type": "string", "enum": list(CATEGORIES)},
         "subcategory": {"type": "string"},
-        "summary": {
-            "type": "string",
-            "description": "A universal 1-sentence description/summary of the document."
-        },
-        "notes": {
-            "type": ["string", "null"],
-            "description": "Optional extra details, e.g. checking account sign-up bonus, or miscellaneous context.",
-        },
-        "document_date": {
-            "type": ["string", "null"],
-            "description": "Best document date in YYYY-MM-DD format when available.",
-        },
-        "issuer": {
-            "type": ["string", "null"],
-            "description": "Company, provider, agency, merchant, or institution that issued the document.",
-        },
-        "account_hint": {
-            "type": ["string", "null"],
-            "description": "Detected account number suffix, plan name, card suffix, or similar non-secret identifier.",
-        },
-        "amounts": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "additionalProperties": False,
-                "required": ["label", "amount", "currency"],
-                "properties": {
-                    "label": {"type": "string"},
-                    "amount": {"type": ["number", "null"]},
-                    "currency": {"type": ["string", "null"]},
-                },
-            },
-        },
-        "metadata": {
-            "type": "object",
-            "description": "Category-specific fields strictly conforming to the specific subcategory metadata schema.",
-        },
-        "confidence": {"type": "number", "minimum": 0, "maximum": 1},
     },
-    "allOf": []
 }
 
-for (cat, sub), meta_props in METADATA_SCHEMAS.items():
-    then_properties = {
-        "metadata": {
-            "type": "object",
-            "properties": meta_props,
-            "additionalProperties": False
-        }
-    }
-    if meta_props:
-        then_properties["metadata"]["required"] = list(meta_props.keys())
-    then_required = []
-    
-    if (cat, sub) in FULL_TEXT_SCHEMAS:
-        then_properties["full_text_or_records"] = FULL_TEXT_SCHEMAS[(cat, sub)]
-        then_required.append("full_text_or_records")
-        
-    block = {
-        "if": {
-            "properties": {"category": {"const": cat}, "subcategory": {"const": sub}}
-        },
-        "then": {
-            "properties": then_properties
-        }
-    }
-    if then_required:
-        block["then"]["required"] = then_required
-        
-    DOCUMENT_SCHEMA["allOf"].append(block)
+SYSTEM_PROMPT = """You classify personal vault documents. Return ONLY a JSON object.
+DO NOT include any reasoning, thinking, preamble, or notes.
+Example response: {"category": "finance", "subcategory": "statement_credit_card"}
 
-SYSTEM_PROMPT = """You classify and extract personal vault documents. You will receive the original file name as part of the context.
-
-Return only JSON that conforms to the provided schema. Choose exactly one category and one of its allowed subcategories:
+Categories and subcategories:
 - tax: w2, 1099_consolidated, 1099_div, 1099_int, 1099_b, 1099_r, 1099_sa, 1099_misc, 1099_nec, 1098_mortgage, 5498, tax_return, tax_notice, other_tax.
 - medical: visit_summary, lab_result, prescription, bill, eob.
 - finance: statement_brokerage, statement_bank, statement_credit_card, statement_venmo, statement_retirement, statement_hsa, trade_confirmation, loan_statement.
@@ -285,10 +264,106 @@ Return only JSON that conforms to the provided schema. Choose exactly one catego
 - insurance: auto_policy, home_policy, renters_policy, life_policy, health_id_card, claim_document.
 - property: vehicle_title, vehicle_registration, real_estate_deed, lease_agreement.
 - other: uncategorized.
+"""
 
-Prefer concise, high-value extraction over speculative detail. Do not invent values.
-Use null when a field is not present. Preserve important line items, transactions,
-holdings, tax form boxes, or medical result values in full_text_or_records when requested by the schema.
-The "summary" field must be a universal 1-sentence description. Use the "notes" field for any extra unstructured context.
-Ensure the "metadata" block exactly matches the specific schema allowed for your chosen subcategory.
+_TYPE_HINTS = {
+    "string": '"<string>"',
+    "number": "<number>",
+    "integer": "<integer>",
+    "boolean": "<true|false>",
+}
+
+
+def _value_placeholder(prop: dict) -> str:
+    t = prop.get("type")
+    if isinstance(t, list):
+        nullable = "null" in t
+        non_null = next((x for x in t if x != "null"), "string")
+        base = _TYPE_HINTS.get(non_null, '"<string>"')
+        return f"{base} | null" if nullable else base
+    if prop.get("format") == "date":
+        return '"<YYYY-MM-DD>"'
+    if "enum" in prop:
+        return " | ".join(json.dumps(v) for v in prop["enum"])
+    return _TYPE_HINTS.get(t, '"<value>"')
+
+
+def _render_object_shape(properties: dict, indent: int = 2) -> str:
+    pad = " " * indent
+    lines = ["{"]
+    items = list(properties.items())
+    for i, (name, spec) in enumerate(items):
+        placeholder = _value_placeholder(spec)
+        comma = "," if i < len(items) - 1 else ""
+        lines.append(f'{pad}"{name}": {placeholder}{comma}')
+    lines.append(" " * (indent - 2) + "}")
+    return "\n".join(lines)
+
+
+def _render_full_text_shape(schema: dict) -> str | None:
+    """Render a concise example for the full_text_or_records schema."""
+    if schema.get("type") == "array":
+        item = schema.get("items", {})
+        props = item.get("properties", {})
+        if props:
+            return f"[\n    {_render_object_shape(props, indent=6)}\n  ]"
+    if schema.get("type") == "object":
+        return _render_object_shape(schema.get("properties", {}), indent=4)
+    return None
+
+
+def get_extraction_prompt(category: str, subcategory: str) -> str:
+    meta_props = METADATA_SCHEMAS.get((category, subcategory), {})
+    metadata_shape = _render_object_shape(meta_props, indent=4) if meta_props else "{}"
+
+    full_text_suffix = ""
+    if (category, subcategory) in FULL_TEXT_SCHEMAS:
+        rendered = _render_full_text_shape(FULL_TEXT_SCHEMAS[(category, subcategory)])
+        if rendered:
+            full_text_suffix = f',\n  "full_text_or_records": {rendered}'
+
+    shape = (
+        "{\n"
+        '  "summary": "<one-sentence plain-English summary>",\n'
+        '  "notes": "<anything unusual or null>",\n'
+        '  "document_date": "<YYYY-MM-DD or null>",\n'
+        '  "issuer": "<issuing company/institution name or null>",\n'
+        f'  "metadata": {metadata_shape}'
+        f"{full_text_suffix}\n"
+        "}"
+    )
+
+    extra_rules: list[str] = []
+    if (category, subcategory) in FULL_TEXT_SCHEMAS:
+        ft_schema = FULL_TEXT_SCHEMAS[(category, subcategory)]
+        if ft_schema.get("type") == "array":
+            item_props = (ft_schema.get("items") or {}).get("properties", {})
+            if "type" in item_props and item_props["type"].get("enum"):
+                extra_rules.append(
+                    '- For transaction `type`: use "credit" for payments/returns '
+                    '(money coming IN to the account holder) and "debit" for '
+                    'purchases/charges/fees (money going OUT).'
+                )
+        extra_rules.append(
+            "- Extract EVERY transaction/holding/row into full_text_or_records as structured objects, NOT as raw strings."
+        )
+
+    rules_list = [
+        "- Output ONLY the raw JSON object. No reasoning, no preamble, no markdown fences.",
+        "- Use YYYY-MM-DD for all dates. If a value is truly unknown, use null.",
+        "- The top-level keys must be EXACTLY the ones shown above — do not add or rename any.",
+        "- The `metadata` block must contain EXACTLY the keys listed above, nothing more and nothing less.",
+        "- Do NOT put PDF file headers (PDFFormatVersion, Creator, Author, Producer, IsLinearized, etc.) anywhere in the output.",
+        "- Document-specific values like account numbers or period dates belong INSIDE `metadata` under their canonical names, not at the top level.",
+        *extra_rules,
+    ]
+    rules = "\n".join(rules_list)
+
+    return f"""Extract details for a {category}/{subcategory} document.
+
+Return a JSON object with EXACTLY this shape:
+{shape}
+
+Rules:
+{rules}
 """
