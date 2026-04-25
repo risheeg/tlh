@@ -1,0 +1,12 @@
+{
+  "name": "vault-ingest",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "npx wrangler dev --config wrangler.jsonc",
+    "deploy": "npx wrangler deploy --config wrangler.jsonc",
+    "check": "npx wrangler deploy --dry-run --config wrangler.jsonc",
+    "d1:migrate:local": "npx wrangler d1 migrations apply vault-ingest --local --config wrangler.jsonc",
+    "d1:migrate:remote": "npx wrangler d1 migrations apply vault-ingest --remote --config wrangler.jsonc"
+  }
+}
