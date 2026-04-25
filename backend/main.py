@@ -6,7 +6,7 @@ from time import perf_counter
 
 from fastapi import FastAPI
 
-from db.constraints import ensure_db_constraints
+from db.constraints import ensure_db_constraints, ensure_db_schemas
 from db.session import Base, engine, SessionLocal
 from routers import accounts, corporate_actions, ingest, prices, portfolio
 from services.prices import sync_stock_prices
@@ -18,6 +18,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 logger = logging.getLogger("uvicorn.error")
 
 # Create all tables that don't exist yet (dev convenience; use Alembic in prod)
+ensure_db_schemas(engine)
 Base.metadata.create_all(bind=engine)
 ensure_db_constraints(engine)
 

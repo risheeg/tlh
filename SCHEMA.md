@@ -2,7 +2,7 @@
 
 ## Overview
 
-The TLH backend uses a PostgreSQL database hosted on Neon. The live `public` schema contains seven base tables and two portfolio views. Daily price-history backups are stored separately in a local SQLite table.
+The TLH backend uses a PostgreSQL database hosted on Neon. The live `public` schema contains seven base tables and two portfolio views. The `vault_ingest` schema stores AI-indexed personal document metadata. Daily price-history backups are stored separately in a local SQLite table.
 
 ---
 
@@ -119,6 +119,28 @@ Stores historical total net worth and portfolio breakdowns.
 
 ---
 
+## Schema: `vault_ingest`
+Stores personal document metadata created by the Cloudflare vault ingest pipeline. Original files and parsed JSON artifacts live in R2; Neon stores the searchable catalog row.
+
+### Base Table: `vault_ingest.documents`
+
+| Field | Type | Constraints | Description |
+| :--- | :--- | :--- | :--- |
+| `id` | UUID | Primary Key | Deterministic document identifier generated from the R2 inbox path. |
+| `upload_date` | DateTime with time zone | Not Null | R2 event timestamp for the original upload. |
+| `processed_at` | DateTime with time zone | Not Null | Timestamp when the Worker finished classification and indexing. |
+| `category` | String | Not Null, Indexed | Top-level document category: `tax`, `medical`, `receipts`, `finance`, `career`, `identity`, or `other`. |
+| `subcategory` | String | Nullable, Indexed | More specific model-generated label such as `W2`, `1099`, `lab_result`, or `brokerage_statement`. |
+| `account_id` | UUID | Nullable, Indexed | Reserved for future linking to an account. No foreign key is enforced in v1. |
+| `r2_original_path` | Text | Not Null | Original R2 inbox key that triggered processing. |
+| `r2_file_path` | Text | Not Null | Processed R2 key for the retained original file. |
+| `r2_parsed_json_path` | Text | Not Null | R2 key for the model's parsed JSON sidecar. |
+| `file_size` | Integer | Nullable | Source object size from the R2 event. |
+| `ai_model` | String | Not Null | Workers AI model used for classification. |
+| `parsed_json` | JSONB | Not Null | Structured classification and extraction output. |
+
+---
+
 ## View: `portfolio_aggregated_positions`
 Unifies active tax lots and aggregate positions into one book-value position stream.
 
@@ -184,6 +206,9 @@ accounts
 
 stock_prices
  └── portfolio_holdings_enriched (left join by ticker for equity holdings)
+
+vault_ingest.documents
+ └── accounts                  (future nullable association via account_id)
 ```
 
 ## Key Business Rules

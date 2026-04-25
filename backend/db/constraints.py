@@ -1,6 +1,15 @@
 from sqlalchemy import text
 
 
+def ensure_db_schemas(engine) -> None:
+    """Create PostgreSQL schemas used by SQLAlchemy models before create_all."""
+    if engine.dialect.name != "postgresql":
+        return
+
+    with engine.begin() as conn:
+        conn.execute(text("CREATE SCHEMA IF NOT EXISTS vault_ingest;"))
+
+
 def ensure_db_constraints(engine) -> None:
     """
     Create DB-level constraints that can't be expressed as simple FK/CHECK constraints.
