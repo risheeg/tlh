@@ -7,52 +7,47 @@ from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from urllib.parse import quote
 
-from js import Object, TextDecoder, Uint8Array
-from pyodide.ffi import to_js
+from js import TextDecoder
 from pyodide.http import pyfetch
 
-from gemini_quota import check_gemini_quota, record_gemini_call
+from providers.gemini_quota import check_gemini_quota, record_gemini_call
+from providers.common import (
+    array_buffer_to_bytes,
+    document_to_text,
+    markdown_breakdown,
+)
+from util.js_interop import to_js_obj
+from util.paths import is_plain_text, path_basename
+from util.json_parse import parse_json_response
+from util.validation import validate_extraction
+
 from taxonomy import (
     CATEGORIES,
     SYSTEM_PROMPT,
     get_extraction_prompt,
     get_targeted_schema,
 )
-from utils import (
-    is_plain_text,
-    parse_json_response,
-    path_basename,
-    validate_extraction,
-)
 
 # Fallback delays for requeues where neither our D1 pre-flight check nor Gemini
-# gave us a specific retry hint. Rate limits want a full minute-plus; transient
-# overloads can usually be retried sooner.
+# gave us a specific retry hint.
 GEMINI_RETRY_DELAY_SECONDS = 60
 GEMINI_RATE_LIMIT_RETRY_BASE_SECONDS = 75
 GEMINI_TRANSIENT_RETRY_BASE_SECONDS = 30
 GEMINI_RETRY_JITTER_SECONDS = 30
 _MAX_RETRY_DELAY_SECONDS = 24 * 3600
 
-# Stage-2 must emit the full JSON (e.g. many ``full_text_or_records`` rows from PDFs). 8192 is too small.
-# Gemini 3 Flash supports large outputs; see https://ai.google.dev/gemini-api/docs/gemini-3
 GEMINI_STAGE2_MAX_OUTPUT_TOKENS = 65_536
 
 
 class GeminiRequeueError(Exception):
-    """Only raised from the Gemini API path. ``kind`` is ``rate_limit`` (429 / RPM/RPD
-    exhausted) or ``transient`` (503 / busy / UNAVAILABLE).
+    """Only raised from the Gemini API path."""
 
-    ``retry_after_seconds`` is a specific wait hint (from the D1 pre-flight check
-    or an API ``Retry-After``). ``None`` means "use the caller's default".
-    """
-
-    def __init__(self, kind: str, detail: str = "", retry_after_seconds: int | None = None):
+    def __init__(self, kind, detail="", retry_after_seconds=None):
         self.kind = kind
         self.detail = detail
         self.retry_after_seconds = retry_after_seconds
 
-    def __str__(self) -> str:
+    def __str__(self):
         parts = [f"Gemini requeue {self.kind}"]
         if self.detail:
             parts.append(f"({self.detail})")
@@ -61,7 +56,7 @@ class GeminiRequeueError(Exception):
         return " ".join(parts)
 
 
-def gemini_requeue_delay_seconds(err: GeminiRequeueError) -> int:
+def gemini_requeue_delay_seconds(err):
     if err.retry_after_seconds is not None:
         return _bounded_retry_delay(err.retry_after_seconds)
     if err.kind == "rate_limit":
@@ -71,23 +66,15 @@ def gemini_requeue_delay_seconds(err: GeminiRequeueError) -> int:
     return _jittered_retry_delay(GEMINI_RETRY_DELAY_SECONDS)
 
 
-def _bounded_retry_delay(seconds: int | float) -> int:
+def _bounded_retry_delay(seconds):
     return max(1, min(int(seconds), _MAX_RETRY_DELAY_SECONDS))
 
 
-def _jittered_retry_delay(base_seconds: int) -> int:
+def _jittered_retry_delay(base_seconds):
     return _bounded_retry_delay(base_seconds + random.randint(0, GEMINI_RETRY_JITTER_SECONDS))
 
 
-def _to_js(value):
-    return to_js(value, dict_converter=Object.fromEntries)
-
-
-def _array_buffer_to_bytes(array_buffer) -> bytes:
-    return bytes(Uint8Array.new(array_buffer))
-
-
-def _gemini_uses_inline_data(content_type: str) -> bool:
+def _gemini_uses_inline_data(content_type):
     lower = (content_type or "").lower()
     if lower == "application/pdf":
         return True
@@ -96,7 +83,7 @@ def _gemini_uses_inline_data(content_type: str) -> bool:
     return False
 
 
-def _gemini_response_text(data: dict) -> str:
+def _gemini_response_text(data):
     cands = data.get("candidates") or []
     if not cands:
         err = data.get("error") or data.get("promptFeedback")
@@ -106,7 +93,7 @@ def _gemini_response_text(data: dict) -> str:
         reason = first.get("finishReason")
         print(f"Gemini finishReason={reason}")
     parts = (first.get("content") or {}).get("parts") or []
-    texts: list[str] = []
+    texts = []
     for p in parts:
         if isinstance(p, dict) and p.get("text"):
             texts.append(str(p["text"]))
@@ -115,7 +102,7 @@ def _gemini_response_text(data: dict) -> str:
     return "\n".join(texts).strip()
 
 
-def _gemini_usage_tokens(data: dict) -> dict[str, int]:
+def _gemini_usage_tokens(data):
     u = data.get("usageMetadata") or {}
     return {
         "prompt_token_count": int(u.get("promptTokenCount") or 0),
@@ -123,8 +110,7 @@ def _gemini_usage_tokens(data: dict) -> dict[str, int]:
     }
 
 
-def _gemini_embedded_error_is_rate_limit(err: dict) -> bool:
-    """True for 429 / explicit rate throttling. Checked before :func:`_gemini_embedded_error_is_transient`."""
+def _gemini_embedded_error_is_rate_limit(err):
     code = err.get("code")
     if isinstance(code, int) and code == 429:
         return True
@@ -136,27 +122,17 @@ def _gemini_embedded_error_is_rate_limit(err: dict) -> bool:
     return False
 
 
-def _gemini_embedded_error_is_transient(err: dict) -> bool:
-    """True for model busy / high demand / UNAVAILABLE (not 429)."""
+def _gemini_embedded_error_is_transient(err):
     if _gemini_embedded_error_is_rate_limit(err):
         return False
     code = err.get("code")
     if isinstance(code, int) and code in (502, 503, 504):
         return True
     status = (err.get("status") or "")
-    if isinstance(status, str) and status.upper() in (
-        "UNAVAILABLE",
-        "DEADLINE_EXCEEDED",
-        "ABORTED",
-    ):
+    if isinstance(status, str) and status.upper() in ("UNAVAILABLE", "DEADLINE_EXCEEDED", "ABORTED"):
         return True
     msg = str(err.get("message") or "").lower()
-    for frag in (
-        "high demand",
-        "spikes in demand",
-        "try again later",
-        "temporarily unavailable",
-    ):
+    for frag in ("high demand", "spikes in demand", "try again later", "temporarily unavailable"):
         if frag in msg:
             return True
     if "unavailable" in msg and "rate" not in msg and "limit" not in msg:
@@ -166,8 +142,7 @@ def _gemini_embedded_error_is_transient(err: dict) -> bool:
     return False
 
 
-def _response_retry_after_seconds(response) -> int | None:
-    """Parse HTTP ``Retry-After`` if Gemini sends one (seconds or HTTP-date)."""
+def _response_retry_after_seconds(response):
     headers = getattr(response, "headers", None)
     get = getattr(headers, "get", None)
     if get is None:
@@ -187,8 +162,7 @@ def _response_retry_after_seconds(response) -> int | None:
         return None
 
 
-def _gemini_retry_info_seconds(err: dict) -> int | None:
-    """Parse ``google.rpc.RetryInfo.retryDelay`` values like ``"60s"``."""
+def _gemini_retry_info_seconds(err):
     for detail in err.get("details") or ():
         if not isinstance(detail, dict):
             continue
@@ -205,34 +179,12 @@ def _gemini_retry_info_seconds(err: dict) -> int | None:
     return None
 
 
-async def _gemini_generate(
-    api_key: str,
-    model: str,
-    system_text: str,
-    user_parts: list[dict],
-    *,
-    max_output_tokens: int = 8192,
-    db=None,
-) -> dict:
-    """Call ``generateContent``; returns the parsed JSON body as a ``dict``.
-
-    When ``db`` is provided (the D1 binding), every outcome is recorded in
-    ``gemini_request_log`` so :func:`gemini_quota.check_gemini_quota` can make
-    accurate pre-flight decisions on the next message.
-    """
+async def _gemini_generate(api_key, model, system_text, user_parts, *, max_output_tokens=8192, db=None):
     enc_model = quote(model, safe="")
-    url = (
-        f"https://generativelanguage.googleapis.com/v1beta/models/"
-        f"{enc_model}:generateContent"
-    )
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{enc_model}:generateContent"
     body = {
         "systemInstruction": {"parts": [{"text": system_text}]},
-        "contents": [
-            {
-                "role": "user",
-                "parts": user_parts,
-            }
-        ],
+        "contents": [{"role": "user", "parts": user_parts}],
         "generationConfig": {
             "temperature": 0,
             "maxOutputTokens": max_output_tokens,
@@ -242,31 +194,16 @@ async def _gemini_generate(
     r = await pyfetch(
         url,
         method="POST",
-        headers={
-            "Content-Type": "application/json",
-            "x-goog-api-key": api_key,
-        },
+        headers={"Content-Type": "application/json", "x-goog-api-key": api_key},
         body=json.dumps(body, ensure_ascii=False),
     )
     text = await r.string()
-
     api_retry_after = _response_retry_after_seconds(r)
 
-    async def _raise_requeue(
-        kind: str,
-        detail: str,
-        retry_after_seconds: int | None = None,
-    ) -> None:
-        # Record the failed call so the quota ledger reflects reality even
-        # when the API rejected us (important: Google counts rejected RPM
-        # attempts against the quota as well).
+    async def _raise_requeue(kind, detail, retry_after_seconds=None):
         if db is not None:
             await record_gemini_call(db, model=model, outcome=kind)
-        raise GeminiRequeueError(
-            kind,
-            detail,
-            retry_after_seconds=retry_after_seconds or api_retry_after,
-        )
+        raise GeminiRequeueError(kind, detail, retry_after_seconds=retry_after_seconds or api_retry_after)
 
     if r.status < 200 or r.status >= 300:
         retry_info = None
@@ -281,8 +218,6 @@ async def _gemini_generate(
             pass
         if r.status == 429:
             await _raise_requeue("rate_limit", "http_429", retry_info)
-        # 524 = Cloudflare "origin timeout" (long-running upstream, including some
-        # Google API edge paths). Treat like other transient HTTP failures.
         if r.status in (502, 503, 504, 524):
             await _raise_requeue("transient", f"http_{r.status}", retry_info)
         try:
@@ -316,102 +251,55 @@ async def _gemini_generate(
     return data
 
 
-def _build_gemini_user_parts(
-    file_name: str,
-    content_type: str,
-    text_or_none: str | None,
-    inline_mime: str | None,
-    inline_b64: str | None,
-    user_message: str,
-) -> list[dict]:
-    """Full document: text, or a single inline blob (e.g. PDF) plus the task text."""
-    parts: list[dict] = []
+def _build_gemini_user_parts(file_name, content_type, text_or_none, inline_mime, inline_b64, user_message):
+    parts = []
     if text_or_none is not None:
         parts.append({"text": f"Source: {file_name} ({content_type})\n\n{text_or_none}"})
     else:
         if not inline_mime or not inline_b64:
             raise RuntimeError("Gemini: internal error; expected inline data or text")
-        parts.append(
-            {
-                "inline_data": {
-                    "mime_type": inline_mime,
-                    "data": inline_b64,
-                }
-            }
-        )
+        parts.append({"inline_data": {"mime_type": inline_mime, "data": inline_b64}})
     parts.append({"text": user_message})
     return parts
 
 
-async def _document_context_for_gemini(
-    env, key: str, content_type: str, array_buffer
-) -> tuple[str, str | None, str | None, str | None, int]:
-    """Build inputs for the Gemini API: full plain text, or a single inline blob
-    (PDF, images), or Workers ``toMarkdown`` text for other formats.
-
-    Returns ``(r2_stored_text, text_full, inline_mime, inline_b64, md_tokens)``.
-    """
-    from ai import _document_to_text  # noqa: PLC0415 — after ``ai`` finishes loading; avoids import cycle
-
+async def _document_context_for_gemini(env, key, content_type, array_buffer):
     file_name = path_basename(key)
     if is_plain_text(content_type, key):
         text = TextDecoder.new("utf-8").decode(array_buffer)
         full = str(text)
         return full, full, None, None, 0
-
     if _gemini_uses_inline_data(content_type):
-        raw = _array_buffer_to_bytes(array_buffer)
+        raw = array_buffer_to_bytes(array_buffer)
         b64 = base64.b64encode(raw).decode("ascii")
         note = f"[Full file sent to Gemini as {content_type} — {file_name}]\n"
         return note, None, content_type, b64, 0
-
-    document_text, conversion_tokens = await _document_to_text(env, key, content_type, array_buffer)
+    document_text, conversion_tokens = await document_to_text(env, key, content_type, array_buffer)
     return document_text, document_text, None, None, conversion_tokens
 
 
 async def _run_gemini_extraction_with_retry(
-    api_key: str,
-    model: str,
-    file_name: str,
-    content_type: str,
-    text_full: str | None,
-    inline_mime: str | None,
-    inline_b64: str | None,
-    prompt: str,
-    schema: dict,
-    category: str,
-    subcategory: str,
-    *,
-    db=None,
-) -> tuple[dict, dict, dict | None]:
-    """Run Gemini Stage-2 extraction; retry with validation errors in the system prompt if needed."""
+    api_key, model, file_name, content_type, text_full, inline_mime, inline_b64,
+    prompt, schema, category, subcategory, *, db=None,
+):
     user_message = "Extract structured data from the file above. Return only one JSON object as specified by the system instruction."
-    parts = _build_gemini_user_parts(
-        file_name, content_type, text_full, inline_mime, inline_b64, user_message
-    )
-    data1 = await _gemini_generate(
-        api_key, model, prompt, parts, max_output_tokens=GEMINI_STAGE2_MAX_OUTPUT_TOKENS, db=db
-    )
+    parts = _build_gemini_user_parts(file_name, content_type, text_full, inline_mime, inline_b64, user_message)
+    data1 = await _gemini_generate(api_key, model, prompt, parts, max_output_tokens=GEMINI_STAGE2_MAX_OUTPUT_TOKENS, db=db)
     raw1 = _gemini_response_text(data1)
     parsed = parse_json_response(raw1)
     errors = validate_extraction(parsed, schema)
     if not errors:
         return parsed, data1, None
-
     truncated = errors[:8]
     joined = "\n".join(f"  - {e}" for e in truncated)
-    print(
-        f"[{file_name}] Stage 2 (Gemini) off-schema for {category}/{subcategory}; retrying. Errors:\n{joined}"
-    )
+    print(f"[{file_name}] Stage 2 (Gemini) off-schema for {category}/{subcategory}; retrying. Errors:\n{joined}")
     correction = (
         f"{prompt}\n\n"
         "Your previous response did not match the required shape. "
         "Fix these issues and return ONLY the corrected JSON object:\n"
         f"{joined}"
     )
-    data2 = await _gemini_generate(
-        api_key, model, correction, parts, max_output_tokens=GEMINI_STAGE2_MAX_OUTPUT_TOKENS, db=db
-    )
+    data2 = await _gemini_generate(api_key, model, correction, parts, max_output_tokens=GEMINI_STAGE2_MAX_OUTPUT_TOKENS, db=db)
     raw2 = _gemini_response_text(data2)
     retry_parsed = parse_json_response(raw2)
     retry_errors = validate_extraction(retry_parsed, schema)
@@ -421,23 +309,8 @@ async def _run_gemini_extraction_with_retry(
     return retry_parsed, data1, data2
 
 
-async def _assert_gemini_quota_available(
-    db,
-    config,
-    file_name: str,
-    *,
-    model: str,
-    rpm_limit: int,
-    rpd_limit: int,
-    expected_calls: int = 1,
-) -> None:
-    ok, wait_s, reason = await check_gemini_quota(
-        db,
-        rpm_limit=rpm_limit,
-        rpd_limit=rpd_limit,
-        model=model,
-        expected_calls=expected_calls,
-    )
+async def _assert_gemini_quota_available(db, config, file_name, *, model, rpm_limit, rpd_limit, expected_calls=1):
+    ok, wait_s, reason = await check_gemini_quota(db, rpm_limit=rpm_limit, rpd_limit=rpd_limit, model=model, expected_calls=expected_calls)
     if ok:
         return
     print(f"[{file_name}] Gemini pre-flight: {reason}; requeueing in {wait_s}s")
@@ -445,19 +318,9 @@ async def _assert_gemini_quota_available(
     raise GeminiRequeueError(kind, reason, retry_after_seconds=wait_s)
 
 
-async def _classify_with_gemini(
-    env,
-    config,
-    key: str,
-    content_type: str,
-    array_buffer,
-) -> dict:
-    from ai import _markdown_breakdown  # noqa: PLC0415
-
+async def classify_with_gemini(env, config, key, content_type, array_buffer):
     if not config.gemini_api_key:
-        raise RuntimeError(
-            "Set Worker secret GEMINI_API_KEY to use a Gemini model (e.g. gemini-3.1-flash-lite-preview). "
-        )
+        raise RuntimeError("Set Worker secret GEMINI_API_KEY to use a Gemini model.")
     api_key = config.gemini_api_key
     db = getattr(env, "VAULT_DB", None)
     file_name = path_basename(key)
@@ -466,28 +329,19 @@ async def _classify_with_gemini(
         env, key, content_type, array_buffer
     )
 
-    # --- Stage 1: full document in request (no 4000-char cap) ---
+    # --- Stage 1 ---
     print(f"[{file_name}] Stage 1: Classifying with Gemini {config.stage1_model}...")
     s1_user = (
         f"File name: {file_name}.\n"
         "Classify this document. Return only JSON with \"category\" and \"subcategory\" as specified in the system instruction."
     )
-    s1_parts = _build_gemini_user_parts(
-        file_name, content_type, text_full, inline_mime, inline_b64, s1_user
-    )
+    s1_parts = _build_gemini_user_parts(file_name, content_type, text_full, inline_mime, inline_b64, s1_user)
     if db is not None:
         await _assert_gemini_quota_available(
-            db,
-            config,
-            file_name,
-            model=config.stage1_model,
-            rpm_limit=config.gemini_rpm_limit,
-            rpd_limit=config.gemini_rpd_limit,
-            expected_calls=1,
+            db, config, file_name, model=config.stage1_model,
+            rpm_limit=config.gemini_rpm_limit, rpd_limit=config.gemini_rpd_limit, expected_calls=1,
         )
-    s1_data = await _gemini_generate(
-        api_key, config.stage1_model, SYSTEM_PROMPT, s1_parts, max_output_tokens=1024, db=db
-    )
+    s1_data = await _gemini_generate(api_key, config.stage1_model, SYSTEM_PROMPT, s1_parts, max_output_tokens=1024, db=db)
     s1_parsed = parse_json_response(_gemini_response_text(s1_data))
 
     category = s1_parsed.get("category", "other")
@@ -495,32 +349,19 @@ async def _classify_with_gemini(
     if category not in CATEGORIES:
         category = "other"
 
+    # --- Stage 2 ---
     print(f"[{file_name}] Stage 2: Extracting {category}/{subcategory} with Gemini {config.stage2_model}...")
     targeted_schema = get_targeted_schema(category, subcategory)
     extraction_prompt = get_extraction_prompt(category, subcategory)
     if db is not None:
         await _assert_gemini_quota_available(
-            db,
-            config,
-            file_name,
-            model=config.stage2_model,
-            rpm_limit=config.gemini_stage2_rpm_limit,
-            rpd_limit=config.gemini_stage2_rpd_limit,
-            expected_calls=2,
+            db, config, file_name, model=config.stage2_model,
+            rpm_limit=config.gemini_stage2_rpm_limit, rpd_limit=config.gemini_stage2_rpd_limit, expected_calls=2,
         )
     s2_parsed, s2_data, s2_retry_data = await _run_gemini_extraction_with_retry(
-        api_key,
-        config.stage2_model,
-        file_name,
-        content_type,
-        text_full,
-        inline_mime,
-        inline_b64,
-        extraction_prompt,
-        targeted_schema,
-        category,
-        subcategory,
-        db=db,
+        api_key, config.stage2_model, file_name, content_type,
+        text_full, inline_mime, inline_b64, extraction_prompt,
+        targeted_schema, category, subcategory, db=db,
     )
 
     u1 = _gemini_usage_tokens(s1_data)
@@ -528,7 +369,7 @@ async def _classify_with_gemini(
     u2r = _gemini_usage_tokens(s2_retry_data) if s2_retry_data else None
     s2_in = u2["prompt_token_count"] + (u2r["prompt_token_count"] if u2r else 0)
     s2_out = u2["candidates_token_count"] + (u2r["candidates_token_count"] if u2r else 0)
-    md = _markdown_breakdown(conversion_tokens)
+    md = markdown_breakdown(conversion_tokens)
 
     total_llm_in = u1["prompt_token_count"] + s2_in
     total_llm_out = u1["candidates_token_count"] + s2_out

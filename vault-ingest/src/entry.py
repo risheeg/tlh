@@ -4,94 +4,19 @@ from js import Object
 from pyodide.ffi import to_js
 from workers import Request, Response, WorkerEntrypoint
 
-from ai import classify_document
-from gemini import GeminiRequeueError, gemini_requeue_delay_seconds
+from providers import classify_document
+from providers.gemini import GeminiRequeueError, gemini_requeue_delay_seconds
 from ingest_http import handle_vault_ingest_http_trigger
-from taxonomy import FULL_TEXT_SCHEMAS, METADATA_SCHEMAS
-from budget import add_neurons_consumed, has_budget
+from storage.budget import add_neurons_consumed, has_budget
+from storage.neon import insert_document
 from config import load_config
-from db import insert_document
-from utils import (
-    content_type_for_key,
-    js_to_py,
-    json_dumps,
-    markdown_key,
-    parsed_key,
-    processed_key,
-    utc_now_iso,
-)
-
-# When persisting to Neon / serving API consumers, avoid JSON `null` on optional
-# scalars: use "" / 0 so statements are easy to filter and UIs do not juggle nulls.
-def _default_for_meta_scalar(spec: dict) -> str | int | float:
-    typ = spec.get("type")
-    if isinstance(typ, list):
-        if "string" in typ:
-            return ""
-        if "number" in typ:
-            return 0.0
-        if "integer" in typ:
-            return 0
-        return ""
-    if typ == "number":
-        return 0.0
-    if typ == "integer":
-        return 0
-    return ""
-
-
-def _normalize_metadata_no_nulls(
-    category: str,
-    subcategory: str,
-    raw: dict,
-) -> dict:
-    spec_map = METADATA_SCHEMAS.get((category, subcategory), {})
-    out: dict = {}
-    for k, spec in spec_map.items():
-        v = raw.get(k)
-        if v is not None:
-            out[k] = v
-            continue
-        if isinstance(spec.get("type"), list) and "null" in spec.get("type", []):
-            out[k] = _default_for_meta_scalar({**spec, "type": [t for t in spec["type"] if t != "null"]})
-        else:
-            out[k] = _default_for_meta_scalar(spec)
-    return out
-
-
-def _neon_parsed_view(
-    category: str,
-    subcategory: str,
-    parsed_payload: dict,
-) -> dict:
-    raw_meta = parsed_payload.get("metadata") or {}
-    allowed = set(METADATA_SCHEMAS.get((category, subcategory), {}).keys())
-    spec_map = METADATA_SCHEMAS.get((category, subcategory), {})
-    clean_raw = {k: v for k, v in raw_meta.items() if k in allowed}
-    clean_meta = _normalize_metadata_no_nulls(category, subcategory, clean_raw)
-    out: dict = {
-        "schema_version": parsed_payload.get("schema_version"),
-        "summary": parsed_payload.get("summary") or "",
-        "notes": parsed_payload.get("notes") if parsed_payload.get("notes") is not None else "",
-        "document_date": (
-            parsed_payload.get("document_date")
-            if parsed_payload.get("document_date") is not None
-            else ""
-        ),
-        "issuer": parsed_payload.get("issuer") if parsed_payload.get("issuer") is not None else "",
-        "metadata": clean_meta,
-    }
-    # full_text_or_records stay on R2 (parsed .json) only; Neon keeps lean rows + counts.
-    ft = parsed_payload.get("full_text_or_records")
-    if (category, subcategory) in FULL_TEXT_SCHEMAS and isinstance(ft, list) and "transaction_count" in spec_map:
-        out["metadata"]["transaction_count"] = len(ft)
-    return out
+from neon_payload import neon_parsed_view
+from util.js_interop import js_to_py, to_js_obj
+from util.json_parse import json_dumps
+from util.paths import content_type_for_key, markdown_key, parsed_key, processed_key
+from util.time import utc_now_iso
 
 RETRY_IN_24_HOURS = 24 * 60 * 60
-
-
-def _to_js(value):
-    return to_js(value, dict_converter=Object.fromEntries)
 
 
 def _event_key(body: dict) -> str | None:
@@ -108,7 +33,7 @@ async def _put_json(bucket, key: str, payload: dict) -> None:
     await bucket.put(
         key,
         json_dumps(payload),
-        _to_js({"httpMetadata": {"contentType": "application/json"}}),
+        to_js_obj({"httpMetadata": {"contentType": "application/json"}}),
     )
 
 
@@ -116,7 +41,7 @@ class Default(WorkerEntrypoint):
     async def fetch(self, request: Request) -> Response:
         """Optional HTTP trigger; behavior lives in ``ingest_http``."""
         return await handle_vault_ingest_http_trigger(
-            self._process_r2_event, request, self.env, _to_js
+            self._process_r2_event, request, self.env, to_js_obj
         )
 
     async def queue(self, batch, env, ctx):
@@ -199,15 +124,15 @@ class Default(WorkerEntrypoint):
         await bucket.put(
             md_key,
             document_text,
-            _to_js({"httpMetadata": {"contentType": "text/markdown"}}),
+            to_js_obj({"httpMetadata": {"contentType": "text/markdown"}}),
         )
         await bucket.put(
             final_key,
             array_buffer,
-            _to_js({"httpMetadata": {"contentType": content_type}}),
+            to_js_obj({"httpMetadata": {"contentType": content_type}}),
         )
 
-        neon_payload = _neon_parsed_view(category, subcategory, parsed_payload)
+        neon_payload = neon_parsed_view(category, subcategory, parsed_payload)
 
         now = utc_now_iso()
         await insert_document(

@@ -1,7 +1,9 @@
+"""Neon SQL-over-HTTP client for the vault-ingest worker."""
+
 from pyodide.http import pyfetch
 from urllib.parse import urlparse
 
-from utils import json_dumps
+from util.json_parse import json_dumps
 
 
 INSERT_DOCUMENT_SQL = """

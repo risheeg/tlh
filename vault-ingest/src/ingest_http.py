@@ -4,9 +4,9 @@ from urllib.parse import urlparse
 
 from workers import Response
 
-from budget import has_budget
+from storage.budget import has_budget
 from config import load_config
-from gemini import GeminiRequeueError, gemini_requeue_delay_seconds
+from providers.gemini import GeminiRequeueError, gemini_requeue_delay_seconds
 
 TRIGGER_PATH = "/__vault_ingest/trigger"
 _SECRET_HEADER = "x-vault-ingest-secret"

@@ -1,4 +1,7 @@
-from utils import js_to_py, usage_date
+"""D1-backed daily neuron budget tracking."""
+
+from util.js_interop import js_to_py
+from util.time import usage_date
 
 
 async def get_neurons_consumed(db, date_value: str | None = None) -> int:
@@ -59,5 +62,3 @@ async def add_neurons_consumed(
         md_out, md_neu, llm_in, llm_in_neu, llm_out, llm_out_neu,  # INSERT values
         md_out, md_neu, llm_in, llm_in_neu, llm_out, llm_out_neu,  # UPDATE deltas
     ).run()
-
-

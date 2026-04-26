@@ -8,32 +8,23 @@ https://ai.google.dev/gemini-api/docs/rate-limits
 import random
 from datetime import date, datetime, timedelta, timezone
 
-from utils import js_to_py
+from util.js_interop import js_to_py
 
 DEFAULT_EXPECTED_CALLS = 1
 _COUNTED_OUTCOMES = ("ok", "rate_limit", "transient")
 
-# U.S. Pacific (America/Los_Angeles) without ``tzdata``/``zoneinfo`` (Pyodide on
-# Workers has no IANA database). 2007+ rules: spring 2:00am ST second Sunday
-# March, fall 2:00am DT first Sunday November.
 _PST = timezone(timedelta(hours=-8))
 _PDT = timezone(timedelta(hours=-7))
 
 _RPM_WINDOW_SECONDS = 65
 _MIN_RPM_WAIT_SECONDS = 15
-# RPD: wait until next PT midnight; small floor to avoid a tight retry loop
 _MIN_RPD_WAIT_SECONDS = 10
-# Cloudflare Queues ``delaySeconds`` maximum (see queues/platform/limits).
 _MAX_QUEUE_DELAY_SECONDS = 24 * 3600
-
-# Spread out retries so many messages that hit the same limit do not all wake in the
-# same second (thundering herd), while staying under the queue max delay.
 _RPD_JITTER_MAX_SECONDS = 120
 _RPM_JITTER_MAX_SECONDS = 30
 
 
-def _day_of_nth_weekday_of_month(year: int, month: int, weekday: int, n: int) -> int:
-    """1-based day-of-month: ``n``-th ``weekday`` (``0=Mon``..``6=Sun``) in ``(year, month)``."""
+def _day_of_nth_weekday_of_month(year, month, weekday, n):
     c = 0
     for d in range(1, 32):
         try:
@@ -46,17 +37,17 @@ def _day_of_nth_weekday_of_month(year: int, month: int, weekday: int, n: int) ->
     raise ValueError("nth weekday not found")
 
 
-def _spring_forward_utc_aware(year: int) -> datetime:
-    d = _day_of_nth_weekday_of_month(year, 3, 6, 2)  # second Sunday
+def _spring_forward_utc_aware(year):
+    d = _day_of_nth_weekday_of_month(year, 3, 6, 2)
     return datetime(year, 3, d, 2, 0, 0, tzinfo=_PST).astimezone(timezone.utc)
 
 
-def _fall_back_utc_aware(year: int) -> datetime:
-    d = _day_of_nth_weekday_of_month(year, 11, 6, 1)  # first Sunday
+def _fall_back_utc_aware(year):
+    d = _day_of_nth_weekday_of_month(year, 11, 6, 1)
     return datetime(year, 11, d, 2, 0, 0, tzinfo=_PDT).astimezone(timezone.utc)
 
 
-def _pacific_in_dst(utc: datetime) -> bool:
+def _pacific_in_dst(utc):
     utc = utc.astimezone(timezone.utc)
     y = utc.year
     for yr in (y - 1, y, y + 1):
@@ -67,11 +58,11 @@ def _pacific_in_dst(utc: datetime) -> bool:
     return False
 
 
-def _pacific_utc_offset_hours(utc: datetime) -> int:
+def _pacific_utc_offset_hours(utc):
     return 7 if _pacific_in_dst(utc) else 8
 
 
-def _pacific_date_from_utc(utc: datetime) -> date:
+def _pacific_date_from_utc(utc):
     u = utc.astimezone(timezone.utc)
     off = _pacific_utc_offset_hours(u)
     naive_utc = u.replace(tzinfo=None)
@@ -79,8 +70,7 @@ def _pacific_date_from_utc(utc: datetime) -> date:
     return nlu.date()
 
 
-def _pacific_midnight_utc(d: date) -> datetime:
-    """UTC instant of local 00:00:00 on ``d`` in U.S. Pacific (``PST`` or ``PDT``)."""
+def _pacific_midnight_utc(d):
     y, m, day = d.year, d.month, d.day
     for z in (_PST, _PDT):
         tloc = datetime(y, m, day, 0, 0, 0, tzinfo=z)
@@ -94,30 +84,27 @@ def _pacific_midnight_utc(d: date) -> datetime:
     raise RuntimeError(f"pacific midnight not found for {d!r}")
 
 
-def _jittered_delay_capped(base_seconds: int, jitter_max: int) -> int:
+def _jittered_delay_capped(base_seconds, jitter_max):
     base_seconds = max(0, int(base_seconds))
     j = random.randint(0, jitter_max) if jitter_max > 0 else 0
     return min(base_seconds + j, _MAX_QUEUE_DELAY_SECONDS)
 
 
-def _now_utc() -> datetime:
+def _now_utc():
     return datetime.now(timezone.utc)
 
 
-def _iso(dt: datetime) -> str:
-    """Match what SQLite ``strftime('%Y-%m-%dT%H:%M:%fZ','now')`` produces so
-    string comparisons with trigger-written timestamps still sort correctly."""
+def _iso(dt):
     if dt.tzinfo is not None:
         dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
     return dt.strftime("%Y-%m-%dT%H:%M:%S.") + f"{dt.microsecond // 1000:03d}Z"
 
 
-def _parse_iso(value: str) -> datetime | None:
+def _parse_iso(value):
     if not value:
         return None
     try:
         s = str(value).rstrip("Z")
-        # Support both ``2026-04-25T17:32:10.123`` and ``2026-04-25T17:32:10``
         if "." in s:
             return datetime.strptime(s, "%Y-%m-%dT%H:%M:%S.%f").replace(tzinfo=timezone.utc)
         return datetime.strptime(s, "%Y-%m-%dT%H:%M:%S").replace(tzinfo=timezone.utc)
@@ -125,9 +112,7 @@ def _parse_iso(value: str) -> datetime | None:
         return None
 
 
-def _pt_day_start_end_utc_iso(now_utc: datetime) -> tuple[str, str]:
-    """Current calendar day in America/Los_Angeles, as ``[start, end)`` in UTC
-    for string comparison with ``called_at``."""
+def _pt_day_start_end_utc_iso(now_utc):
     u = now_utc.astimezone(timezone.utc)
     d = _pacific_date_from_utc(u)
     start_utc = _pacific_midnight_utc(d)
@@ -135,33 +120,18 @@ def _pt_day_start_end_utc_iso(now_utc: datetime) -> tuple[str, str]:
     return _iso(start_utc), _iso(end_utc)
 
 
-def _seconds_until_next_pt_midnight_utc(now_utc: datetime) -> int:
-    """Seconds until the next RPD reset (start of the next calendar day in PT), plus a few seconds of cushion."""
+def _seconds_until_next_pt_midnight_utc(now_utc):
     u = now_utc.astimezone(timezone.utc)
     d = _pacific_date_from_utc(u)
     m_next = _pacific_midnight_utc(d + timedelta(days=1))
     return max(0, int((m_next.replace(tzinfo=None) - u.replace(tzinfo=None)).total_seconds()) + 3)
 
 
-async def check_gemini_quota(
-    db,
-    *,
-    rpm_limit: int,
-    rpd_limit: int,
-    model: str | None = None,
-    expected_calls: int = DEFAULT_EXPECTED_CALLS,
-) -> tuple[bool, int, str]:
-    """Pre-flight: can we make ``expected_calls`` API requests right now?
-
-    Returns ``(has_budget, retry_after_seconds, reason)``.
-    When ``has_budget`` is ``True``, ``retry_after_seconds`` is 0.
-    """
+async def check_gemini_quota(db, *, rpm_limit, rpd_limit, model=None, expected_calls=DEFAULT_EXPECTED_CALLS):
     if rpm_limit <= 0 or rpd_limit <= 0:
         return True, 0, "quota_disabled"
-
     now = _now_utc()
     day_start_iso, day_end_iso = _pt_day_start_end_utc_iso(now)
-
     rpd_count = await _count_calls_in_pt_day(db, day_start_iso, day_end_iso, model=model)
     if rpd_count + expected_calls > rpd_limit:
         wait = _seconds_until_next_pt_midnight_utc(now)
@@ -169,7 +139,6 @@ async def check_gemini_quota(
         wait = _jittered_delay_capped(wait, _RPD_JITTER_MAX_SECONDS)
         scope = model or "all_models"
         return False, wait, f"rpd_exhausted ({scope}: {rpd_count}/{rpd_limit})"
-
     minute_cutoff_iso = _iso(now - timedelta(seconds=_RPM_WINDOW_SECONDS))
     row = await _count_recent_calls(db, minute_cutoff_iso, model=model)
     rpm_count = int(row.get("c") or 0)
@@ -183,17 +152,10 @@ async def check_gemini_quota(
         wait = _jittered_delay_capped(wait, _RPM_JITTER_MAX_SECONDS)
         scope = model or "all_models"
         return False, wait, f"rpm_exhausted ({scope}: {rpm_count}/{rpm_limit})"
-
     return True, 0, "ok"
 
 
-async def record_gemini_call(
-    db,
-    *,
-    model: str = "",
-    outcome: str = "ok",
-) -> None:
-    """Insert one row into the Gemini call ledger."""
+async def record_gemini_call(db, *, model="", outcome="ok"):
     try:
         await db.prepare(
             "INSERT INTO gemini_request_log (called_at, model, outcome) VALUES (?, ?, ?)"
@@ -202,14 +164,7 @@ async def record_gemini_call(
         print(f"gemini_quota: failed to record call ({outcome}): {exc!s}")
 
 
-async def _count_calls_in_pt_day(
-    db,
-    day_start_iso: str,
-    day_end_iso: str,
-    *,
-    model: str | None = None,
-) -> int:
-    """Count ledger rows for the current **Pacific calendar day** (``[start, end)`` in UTC)."""
+async def _count_calls_in_pt_day(db, day_start_iso, day_end_iso, *, model=None):
     outcomes_sql = ",".join(f"'{x}'" for x in _COUNTED_OUTCOMES)
     if model:
         row = await db.prepare(
@@ -224,7 +179,7 @@ async def _count_calls_in_pt_day(
     return int((js_to_py(row) or {}).get("c") or 0)
 
 
-async def _count_recent_calls(db, cutoff_iso: str, *, model: str | None = None) -> dict:
+async def _count_recent_calls(db, cutoff_iso, *, model=None):
     outcomes_sql = ",".join(f"'{x}'" for x in _COUNTED_OUTCOMES)
     if model:
         row = await db.prepare(
