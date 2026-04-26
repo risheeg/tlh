@@ -1,11 +1,12 @@
 import uuid
-from urllib.parse import urlparse
 
 from js import Object
 from pyodide.ffi import to_js
 from workers import Request, Response, WorkerEntrypoint
 
 from ai import classify_document
+from gemini import GeminiRequeueError, gemini_requeue_delay_seconds
+from ingest_http import handle_vault_ingest_http_trigger
 from taxonomy import FULL_TEXT_SCHEMAS, METADATA_SCHEMAS
 from budget import add_neurons_consumed, has_budget
 from config import load_config
@@ -113,58 +114,10 @@ async def _put_json(bucket, key: str, payload: dict) -> None:
 
 class Default(WorkerEntrypoint):
     async def fetch(self, request: Request) -> Response:
-        """Optional: trigger processing without R2 event→queue (for e2e / ops).
-
-        POST /__vault_ingest/trigger with JSON ``{"key": "inbox/foo.txt"}`` and header
-        ``X-Vault-Ingest-Secret`` equal to the ``VAULT_INGEST_HTTP_SECRET`` worker secret.
-        If the secret is unset, this path returns 404.
-        """
-        u = urlparse(request.url)
-        if u.path.rstrip("/") != "/__vault_ingest/trigger":
-            return Response("Not found", status=404)
-        if request.method != "POST":
-            return Response("Method not allowed", status=405)
-        secret = str(getattr(self.env, "VAULT_INGEST_HTTP_SECRET", "") or "").strip()
-        if not secret:
-            return Response("Not found", status=404)
-        got = ""
-        for name, val in request.headers.items():
-            if name.lower() == "x-vault-ingest-secret":
-                got = (val or "").strip()
-                break
-        if got != secret:
-            return Response("Unauthorized", status=401)
-        try:
-            data = await request.json()
-        except Exception:
-            return Response("Invalid JSON", status=400)
-        if not isinstance(data, dict):
-            return Response("JSON object required", status=400)
-        key = data.get("key")
-        if not key or not isinstance(key, str):
-            return Response.from_json({"error": "missing string key"}, status=400)
-        config = load_config(self.env)
-        if not key.startswith(config.inbox_prefix):
-            return Response.from_json(
-                {"error": f"key must be under {config.inbox_prefix!r}"},
-                status=400,
-            )
-        if not await has_budget(self.env.VAULT_DB, config.daily_neuron_budget):
-            return Response("Daily AI budget exhausted", status=503)
-        size = data.get("size")
-        if size is not None and not isinstance(size, (int, float)):
-            size = None
-        obj_part: dict = {"key": key}
-        if size is not None:
-            obj_part["size"] = int(size)
-        et = data.get("eventTime")
-        fake: dict = {"object": obj_part, "eventTime": et if isinstance(et, str) else None}
-        try:
-            await self._process_r2_event(self.env, config, fake, key)
-        except Exception as exc:
-            print(f"HTTP trigger process failed: {exc}")
-            return Response.from_json({"error": str(exc)}, status=500)
-        return Response.from_json({"ok": True, "key": key})
+        """Optional HTTP trigger; behavior lives in ``ingest_http``."""
+        return await handle_vault_ingest_http_trigger(
+            self._process_r2_event, request, self.env, _to_js
+        )
 
     async def queue(self, batch, env, ctx):
         worker_env = self.env
@@ -191,9 +144,19 @@ class Default(WorkerEntrypoint):
 
                 await self._process_r2_event(worker_env, config, body, key)
                 msg.ack()
+            except GeminiRequeueError as greq:
+                delay = gemini_requeue_delay_seconds(greq)
+                print(
+                    f"[{key}] Gemini {greq.kind} (requeue{': ' + greq.detail if greq.detail else ''}); "
+                    f"msg.retry in {delay}s"
+                )
+                msg.retry(delaySeconds=delay)
             except Exception as exc:
-                print(f"Vault ingest message failed: {exc}")
-                msg.retry()
+                err_s = str(exc)
+                if len(err_s) > 500:
+                    err_s = err_s[:500] + "…"
+                print(f"Vault ingest message failed (no retry): {err_s}")
+                msg.ack()
 
     async def _process_r2_event(self, env, config, body: dict, key: str) -> None:
         bucket = env.VAULT_BUCKET

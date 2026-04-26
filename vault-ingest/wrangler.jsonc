@@ -13,8 +13,13 @@
       "R2_PROCESSED_PREFIX": "processed/",
       "R2_PARSED_PREFIX": "parsed/",
       "DAILY_NEURON_BUDGET": "9500",
-      "AI_STAGE1_MODEL": "@cf/meta/llama-3.1-8b-instruct-fast",
-      "AI_STAGE2_MODEL": "@cf/meta/llama-3.1-8b-instruct-fast"
+      "AI_STAGE1_MODEL": "gemini-3.1-flash-lite-preview",
+      "AI_STAGE2_MODEL": "gemini-3-flash-preview",
+      "GEMINI_RPM_LIMIT": "15",
+      "GEMINI_RPD_LIMIT": "450",
+      "GEMINI_STAGE2_RPD_LIMIT": "19",
+      // Stage 1: 2.5 Flash Lite (3.1-flash-lite-preview often returned 503 for this key). Stage 2: 3 Flash.
+      // Optional GEMINI_STAGE2_RPM_LIMIT overrides RPM for stage 2 only.
     },
   "r2_buckets": [
     {
@@ -34,12 +39,21 @@
     "binding": "AI"
   },
   "queues": {
+    "producers": [
+      {
+        "queue": "vault-ingest",
+        "binding": "VAULT_INGEST"
+      }
+    ],
     "consumers": [
       {
         "queue": "vault-ingest",
         "max_batch_size": 1,
         "max_batch_timeout": 30,
-        "max_retries": 0,
+        // Serialize consumption so the D1-backed Gemini pre-flight (gemini_quota)
+        // is race-free; tune GEMINI_RPM_LIMIT / GEMINI_RPD_LIMIT and GEMINI_STAGE2_*.
+        "max_concurrency": 1,
+        "max_retries": 16,
         "dead_letter_queue": "vault-ingest-dlq"
       }
     ]

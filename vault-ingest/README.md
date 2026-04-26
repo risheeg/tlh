@@ -8,8 +8,8 @@ Cloudflare Python Worker pipeline for backing up, classifying, and indexing pers
 2. `rclone` copies new files from a Linux folder into the R2 `inbox/` prefix.
 3. R2 Event Notifications send `object-create` events for `inbox/` to the `vault-ingest` queue.
 4. The Python Worker checks the D1 daily AI budget.
-5. PDFs and rich documents are converted with `env.AI.toMarkdown(...)`; plain text is sent directly to Gemma.
-6. `@cf/google/gemma-4-26b-a4b-it` returns structured JSON.
+5. PDFs and rich documents may be converted with `env.AI.toMarkdown(...)` when needed; plain text is sent directly; PDFs/images are sent inline to Gemini models when supported.
+6. A two-stage LLM pass (classification → targeted extraction) returns structured JSON. The model provider is pluggable — Cloudflare Workers AI or Google Gemini. See [Model Providers](#model-providers) below.
 7. The Worker writes the parsed JSON sidecar and processed original to R2, inserts the catalog row into Neon over HTTP, records D1 usage, and deletes the `inbox/` object.
 
 ## Cloudflare Resources
@@ -52,6 +52,13 @@ npx wrangler secret put NEON_CONNECTION_STRING
 ```
 
 The Python Worker derives Neon's SQL-over-HTTP `/sql` endpoint from the hostname in `NEON_CONNECTION_STRING` and sends the connection string in the `Neon-Connection-String` header, matching the Neon serverless driver's HTTP protocol without importing the JavaScript driver.
+
+## Model Providers
+
+Both `AI_STAGE1_MODEL` and `AI_STAGE2_MODEL` must target the same provider. The Worker detects the provider from the model id:
+
+- **Cloudflare Workers AI** — ids starting with `@cf/` (e.g. `@cf/google/gemma-3-12b-it`). Uses the `AI` binding. Neurons are billed against the Cloudflare account.
+- **Google Gemini** — model ids like `gemini-3-flash-preview` / `gemini-2.5-flash-lite`. Requires the `GEMINI_API_KEY` secret and respects the `GEMINI_RPM_LIMIT` / `GEMINI_RPD_LIMIT` (and `GEMINI_STAGE2_*`) pre-flight ledger backed by D1.
 
 ## Manual Uploads
 

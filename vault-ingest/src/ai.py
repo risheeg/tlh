@@ -44,13 +44,12 @@ _MODEL_NEURON_RATES: dict[str, tuple[int, int]] = {
 # Fallback rate used when the model is not in the table above.
 _FALLBACK_NEURON_RATE: tuple[int, int] = (9_091, 27_273)
 
-# Vision model for Markdown conversion
-_MARKDOWN_VISION_MODEL = "@cf/google/gemma-3-12b-it"
-_MARKDOWN_NEURONS_PER_M_OUTPUT_TOKENS: int = 50_560
-
-
 def _to_js(value):
     return to_js(value, dict_converter=Object.fromEntries)
+
+
+def _is_workers_ai_model(model: str) -> bool:
+    return (model or "").strip().startswith("@cf/")
 
 
 def _extract_response_text(response: dict) -> str | dict | list:
@@ -104,6 +103,10 @@ def _llm_breakdown(response: dict, model: str) -> dict:
         "completion_tokens": completion_tokens,
         "output_neurons":   _tokens_to_neurons(completion_tokens, output_rate),
     }
+
+
+# Vision model for Markdown conversion (used for neuron pricing only)
+_MARKDOWN_NEURONS_PER_M_OUTPUT_TOKENS: int = 50_560
 
 
 def _markdown_breakdown(conversion_tokens: int) -> dict:
@@ -205,8 +208,9 @@ async def _run_extraction_with_retry(
     return retry_parsed, resp, retry_resp
 
 
-async def classify_document(env, config, key: str, content_type: str, array_buffer) -> dict:
-    """Two-stage document classification and extraction."""
+async def _classify_with_workers_ai(
+    env, config, key: str, content_type: str, array_buffer
+) -> dict:
     document_text, conversion_tokens = await _document_to_text(env, key, content_type, array_buffer)
     file_name = path_basename(key)
 
@@ -230,12 +234,12 @@ async def classify_document(env, config, key: str, content_type: str, array_buff
     s1_resp = await env.AI.run(config.stage1_model, _to_js(stage1_payload))
     s1_resp = js_to_py(s1_resp)
     s1_parsed = parse_json_response(_extract_response_text(s1_resp))
-    
+
     category = s1_parsed.get("category", "other")
     subcategory = s1_parsed.get("subcategory", "uncategorized")
     if category not in CATEGORIES:
         category = "other"
-    
+
     # --- Stage 2: Targeted Extraction ---
     print(f"[{file_name}] Stage 2: Extracting {category}/{subcategory} with {config.stage2_model}...")
     targeted_schema = get_targeted_schema(category, subcategory)
@@ -256,12 +260,12 @@ async def classify_document(env, config, key: str, content_type: str, array_buff
     llm1 = _llm_breakdown(s1_resp, config.stage1_model)
     llm2 = _llm_breakdown(s2_resp, config.stage2_model)
     llm2_retry = _llm_breakdown(s2_retry_resp, config.stage2_model) if s2_retry_resp else None
-    md = _markdown_breakdown(conversion_tokens)
-
     s2_in_neurons  = llm2["input_neurons"]  + (llm2_retry["input_neurons"]  if llm2_retry else 0)
     s2_out_neurons = llm2["output_neurons"] + (llm2_retry["output_neurons"] if llm2_retry else 0)
     s2_in_tokens   = llm2["prompt_tokens"]     + (llm2_retry["prompt_tokens"]     if llm2_retry else 0)
     s2_out_tokens  = llm2["completion_tokens"] + (llm2_retry["completion_tokens"] if llm2_retry else 0)
+
+    md = _markdown_breakdown(conversion_tokens)
 
     total_neurons = llm1["input_neurons"] + llm1["output_neurons"] + \
                     s2_in_neurons + s2_out_neurons + \
@@ -277,6 +281,10 @@ async def classify_document(env, config, key: str, content_type: str, array_buff
         "stage2_retried":         llm2_retry is not None,
         "llm_neurons":            llm1["input_neurons"] + llm1["output_neurons"] + \
                                   s2_in_neurons + s2_out_neurons,
+        "llm_input_tokens":       llm1["prompt_tokens"] + s2_in_tokens,
+        "llm_output_tokens":      llm1["completion_tokens"] + s2_out_tokens,
+        "llm_input_neurons":      llm1["input_neurons"] + s2_in_neurons,
+        "llm_output_neurons":     llm1["output_neurons"] + s2_out_neurons,
     }
 
     print(
@@ -294,3 +302,31 @@ async def classify_document(env, config, key: str, content_type: str, array_buff
         "usage_breakdown":  usage,
         "document_text": document_text,
     }
+
+
+def _provider_for_model(model: str) -> str:
+    if _is_workers_ai_model(model):
+        return "workers_ai"
+    return "gemini"
+
+
+async def classify_document(env, config, key: str, content_type: str, array_buffer) -> dict:
+    """Two-stage document classification and extraction.
+
+    Both stages must use the same provider (Cloudflare Workers AI ``@cf/...`` or
+    Google Gemini).
+    """
+    p1 = _provider_for_model(config.stage1_model)
+    p2 = _provider_for_model(config.stage2_model)
+    if p1 != p2:
+        raise RuntimeError(
+            "AI_STAGE1_MODEL and AI_STAGE2_MODEL must both target the same provider "
+            "(Cloudflare ``@cf/...`` or Google Gemini). "
+            f"Got stage1={config.stage1_model!r} ({p1}) vs stage2={config.stage2_model!r} ({p2})."
+        )
+    if p1 == "workers_ai":
+        return await _classify_with_workers_ai(env, config, key, content_type, array_buffer)
+    return await _classify_with_gemini(env, config, key, content_type, array_buffer)
+
+
+from gemini import _classify_with_gemini
