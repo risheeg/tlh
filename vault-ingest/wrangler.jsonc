@@ -13,13 +13,14 @@
       "R2_PROCESSED_PREFIX": "processed/",
       "R2_PARSED_PREFIX": "parsed/",
       "DAILY_NEURON_BUDGET": "9500",
-      "AI_STAGE1_MODEL": "gemini-3.1-flash-lite-preview",
-      "AI_STAGE2_MODEL": "gemini-3-flash-preview",
+      "AI_STAGE1_MODEL": "mistral-large-latest",
+      "AI_STAGE2_MODEL": "mistral-large-latest",
       "GEMINI_RPM_LIMIT": "15",
       "GEMINI_RPD_LIMIT": "450",
       "GEMINI_STAGE2_RPD_LIMIT": "19",
-      // Stage 1: 2.5 Flash Lite (3.1-flash-lite-preview often returned 503 for this key). Stage 2: 3 Flash.
-      // Optional GEMINI_STAGE2_RPM_LIMIT overrides RPM for stage 2 only.
+      // Mistral: classification + extraction via mistral-large-latest (Chat API).
+      // OCR model (mistral-ocr-latest) is hardcoded in mistral.py.
+      // Gemini vars kept for fallback; set AI_STAGE*_MODEL to gemini-* to switch back.
     },
   "r2_buckets": [
     {
