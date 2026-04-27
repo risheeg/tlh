@@ -20,7 +20,10 @@ METADATA_SCHEMAS = {
     ("tax", "other_tax"): {"tax_year": {"type": "integer"}, "taxable_income_amount": {"type": "number"}, "issuer_name": {"type": "string"}},
 
     # 2. Medical
-    **{("medical", sub): {"provider_name": {"type": "string"}} for sub in ["visit_summary", "lab_result", "prescription", "bill", "eob"]},
+    **{("medical", sub): {
+        "provider_name": {"type": "string"},
+        "amount_due": {"type": "number"},
+    } for sub in ["visit_summary", "lab_result", "prescription", "bill", "eob"]},
 
     # 3. Finance
     ("finance", "statement_brokerage"): {
@@ -29,6 +32,7 @@ METADATA_SCHEMAS = {
         "statement_period_start": {"type": "string", "format": "date"},
         "statement_period_end": {"type": "string", "format": "date"},
         "account_type": {"type": "string"},
+        "starting_balance": {"type": "number"},
         "ending_balance": {"type": "number"},
         "positions_count": {"type": "integer"},
     },
@@ -38,10 +42,9 @@ METADATA_SCHEMAS = {
         "statement_period_start": {"type": "string", "format": "date"},
         "statement_period_end": {"type": "string", "format": "date"},
         "account_type": {"type": "string"},
+        "starting_balance": {"type": "number"},
         "ending_balance": {"type": "number"},
-        "transaction_count": {"type": "integer"},
         "rewards_earned": {"type": "number"},
-        "rewards_balance": {"type": "number"},
     },
     **{("finance", sub): {
         "account_number": {"type": "string"},
@@ -49,9 +52,19 @@ METADATA_SCHEMAS = {
         "statement_period_start": {"type": "string", "format": "date"},
         "statement_period_end": {"type": "string", "format": "date"},
         "account_type": {"type": "string"},
+        "starting_balance": {"type": "number"},
         "ending_balance": {"type": "number"},
-        "transaction_count": {"type": "integer"},
-    } for sub in ["statement_bank", "statement_venmo", "statement_retirement", "statement_hsa"]},
+        "rewards_earned": {"type": "number"},
+    } for sub in ["statement_bank", "statement_venmo"]},
+    **{("finance", sub): {
+        "account_number": {"type": "string"},
+        "account_hint": {"type": ["string", "null"]},
+        "statement_period_start": {"type": "string", "format": "date"},
+        "statement_period_end": {"type": "string", "format": "date"},
+        "account_type": {"type": "string"},
+        "starting_balance": {"type": "number"},
+        "ending_balance": {"type": "number"},
+    } for sub in ["statement_retirement", "statement_hsa"]},
     **{("finance", sub): {
         "account_number": {"type": "string"},
         "account_hint": {"type": ["string", "null"]},
@@ -60,6 +73,8 @@ METADATA_SCHEMAS = {
 
     # 4. Receipts
     **{("receipts", sub): {
+        "merchant_name": {"type": "string"},
+        "total_amount": {"type": "number"},
         "return_by_date": {"type": "string", "format": "date"},
         "warranty_expiration_date": {"type": "string", "format": "date"},
         "purchase_description": {"type": "string"},
@@ -84,6 +99,8 @@ METADATA_SCHEMAS = {
     },
     ("career", "paystub"): {
         "pay_period_end": {"type": "string", "format": "date"},
+        "gross_pay": {"type": "number"},
+        "net_pay": {"type": "number"},
     },
     ("career", "performance_review"): {},
 

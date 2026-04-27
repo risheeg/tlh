@@ -1,6 +1,7 @@
 """Neon payload shaping: convert parsed extraction output into the lean JSONB
 view stored in the ``vault_ingest.documents`` row."""
 
+from derived_metrics import derive_transaction_metrics
 from taxonomy.schemas import FULL_TEXT_SCHEMAS, METADATA_SCHEMAS
 
 
@@ -70,6 +71,6 @@ def neon_parsed_view(
         "metadata": clean_meta,
     }
     ft = parsed_payload.get("full_text_or_records")
-    if (category, subcategory) in FULL_TEXT_SCHEMAS and isinstance(ft, list) and "transaction_count" in spec_map:
-        out["metadata"]["transaction_count"] = len(ft)
+    if (category, subcategory) in FULL_TEXT_SCHEMAS and isinstance(ft, list):
+        out["metadata"].update(derive_transaction_metrics(category, subcategory, ft))
     return out
