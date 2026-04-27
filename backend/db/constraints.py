@@ -157,6 +157,37 @@ def ensure_db_constraints(engine) -> None:
                     END IF;
                 END
                 $$;
+
+                -- Ensure vault_ingest.documents has a user_id with FK to users.
+                DO $$
+                BEGIN
+                    IF EXISTS (
+                        SELECT 1 FROM information_schema.tables 
+                        WHERE table_schema = 'vault_ingest' AND table_name = 'documents'
+                    ) THEN
+                        -- Add user_id column if missing
+                        IF NOT EXISTS (
+                            SELECT 1 FROM information_schema.columns 
+                            WHERE table_schema = 'vault_ingest' AND table_name = 'documents' AND column_name = 'user_id'
+                        ) THEN
+                            ALTER TABLE vault_ingest.documents ADD COLUMN user_id UUID;
+                        END IF;
+
+                        -- Ensure user_id is NOT NULL (assuming users are already correctly associated)
+                        ALTER TABLE vault_ingest.documents ALTER COLUMN user_id SET NOT NULL;
+
+                        -- Add Foreign Key if missing
+                        IF NOT EXISTS (
+                            SELECT 1 FROM information_schema.table_constraints 
+                            WHERE table_schema = 'vault_ingest' AND table_name = 'documents' AND constraint_type = 'FOREIGN KEY'
+                        ) THEN
+                            ALTER TABLE vault_ingest.documents 
+                            ADD CONSTRAINT fk_documents_user_id 
+                            FOREIGN KEY (user_id) REFERENCES users(id);
+                        END IF;
+                    END IF;
+                END
+                $$;
                 """
             )
         )
