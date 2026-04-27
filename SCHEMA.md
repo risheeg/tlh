@@ -127,6 +127,7 @@ Stores personal document metadata created by the Cloudflare vault ingest pipelin
 | Field | Type | Constraints | Description |
 | :--- | :--- | :--- | :--- |
 | `id` | UUID | Primary Key | Deterministic document identifier generated from the R2 inbox path. |
+| `user_id` | UUID | Not Null, Foreign Key (`users.id`), Indexed | Owner of the document. |
 | `upload_date` | DateTime with time zone | Not Null | R2 event timestamp for the original upload. |
 | `processed_at` | DateTime with time zone | Not Null | Timestamp when the Worker finished classification and indexing. |
 | `category` | String | Not Null, Indexed | Top-level document category: `tax`, `medical`, `finance`, `receipts`, `career`, `identity`, `insurance`, `property`, or `other`. |
@@ -209,6 +210,7 @@ stock_prices
  └── portfolio_holdings_enriched (left join by ticker for equity holdings)
 
 vault_ingest.documents
+ ├── users                     (many-to-one)
  └── accounts                  (nullable association via account_id)
 ```
 

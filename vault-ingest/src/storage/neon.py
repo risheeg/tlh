@@ -9,6 +9,7 @@ from util.json_parse import json_dumps
 INSERT_DOCUMENT_SQL = """
 INSERT INTO vault_ingest.documents (
     id,
+    user_id,
     upload_date,
     processed_at,
     category,
@@ -24,20 +25,22 @@ INSERT INTO vault_ingest.documents (
 )
 VALUES (
     $1::uuid,
-    $2::timestamptz,
+    $2::uuid,
     $3::timestamptz,
-    $4,
+    $4::timestamptz,
     $5,
-    $6::uuid,
-    $7,
+    $6,
+    $7::uuid,
     $8,
     $9,
     $10,
     $11,
     $12,
-    $13::jsonb
+    $13,
+    $14::jsonb
 )
 ON CONFLICT (id) DO UPDATE SET
+    user_id = excluded.user_id,
     upload_date = excluded.upload_date,
     processed_at = excluded.processed_at,
     category = excluded.category,
@@ -95,6 +98,7 @@ async def insert_document(connection_string: str, document: dict) -> None:
         INSERT_DOCUMENT_SQL,
         [
             document["id"],
+            document["user_id"],
             document["upload_date"],
             document["processed_at"],
             document["category"],
