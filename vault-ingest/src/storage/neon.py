@@ -92,6 +92,7 @@ async def execute_neon_sql(connection_string: str, sql: str, params: list) -> di
         return {"raw": body}
 
 
+
 async def insert_document(connection_string: str, document: dict) -> None:
     await execute_neon_sql(
         connection_string,
@@ -113,3 +114,10 @@ async def insert_document(connection_string: str, document: dict) -> None:
             json_dumps(document["parsed_json"]),
         ],
     )
+
+
+async def document_id_exists(connection_string: str, document_id: str) -> bool:
+    sql = "SELECT 1 FROM vault_ingest.documents WHERE id = $1::uuid LIMIT 1"
+    result = await execute_neon_sql(connection_string, sql, [document_id])
+    rows = result.get("rows")
+    return bool(rows and len(rows) > 0)

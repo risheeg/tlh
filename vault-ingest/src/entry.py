@@ -1,4 +1,5 @@
 import uuid
+import hashlib
 
 from js import Object
 from pyodide.ffi import to_js
@@ -8,9 +9,10 @@ from providers import classify_document
 from providers.gemini import GeminiRequeueError, gemini_requeue_delay_seconds
 from ingest_http import handle_vault_ingest_http_trigger
 from storage.budget import add_neurons_consumed, has_budget
-from storage.neon import insert_document
+from storage.neon import insert_document, document_id_exists
 from config import load_config
 from neon_payload import neon_parsed_view
+from providers.common import array_buffer_to_bytes
 from util.js_interop import js_to_py, to_js_obj
 from util.json_parse import json_dumps
 from util.paths import content_type_for_key, markdown_key, parsed_key, processed_key, parse_user_id_from_inbox_key
@@ -25,8 +27,9 @@ def _event_key(body: dict) -> str | None:
     return str(key) if key else None
 
 
-def _document_id(key: str) -> str:
-    return str(uuid.uuid5(uuid.NAMESPACE_URL, f"r2://vault-ingest/{key}"))
+def _document_id(user_id: str, content_hash: str) -> str:
+    """Generate a deterministic UUID5 from user_id and file content hash."""
+    return str(uuid.uuid5(uuid.NAMESPACE_URL, f"user://{user_id}/hash/{content_hash}"))
 
 
 async def _put_json(bucket, key: str, payload: dict) -> None:
@@ -105,6 +108,17 @@ class Default(WorkerEntrypoint):
         metadata = js_to_py(getattr(obj, "httpMetadata", None)) or {}
         content_type = content_type_for_key(key, metadata.get("contentType"))
 
+        # Calculate content hash and user-scoped ID
+        raw_bytes = array_buffer_to_bytes(array_buffer)
+        content_hash = hashlib.sha256(raw_bytes).hexdigest()
+        document_id = _document_id(user_id, content_hash)
+
+        # Skip if already processed for this user
+        if await document_id_exists(config.neon_connection_string, document_id):
+            print(f"[{key}] Skipping already processed document for user {user_id} (ID: {document_id})")
+            await bucket.delete(key)
+            return
+
         classification = await classify_document(
             env,
             config,
@@ -113,7 +127,7 @@ class Default(WorkerEntrypoint):
             array_buffer,
         )
 
-        document_id = _document_id(key)
+        # document_id already calculated above
         category = classification["category"]
         subcategory = classification["subcategory"]
         final_key = processed_key(user_id, config.processed_prefix, category, document_id, key)
