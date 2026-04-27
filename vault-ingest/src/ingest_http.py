@@ -7,6 +7,7 @@ from workers import Response
 from storage.budget import has_budget
 from config import load_config
 from providers.gemini import GeminiRequeueError, gemini_requeue_delay_seconds
+from util.paths import parse_user_id_from_inbox_key
 
 TRIGGER_PATH = "/__vault_ingest/trigger"
 _SECRET_HEADER = "x-vault-ingest-secret"
@@ -89,7 +90,7 @@ async def handle_vault_ingest_http_trigger(
     env,
     to_js,
 ) -> Response:
-    """``process_r2_event`` is ``async (env, config, body: dict, key: str) -> None``."""
+    """``process_r2_event`` is ``async (env, config, body: dict, key: str, user_id: str) -> None``."""
     if not _path_is_trigger(request.url):
         return Response("Not found", status=404)
     if request.method != "POST":
@@ -113,9 +114,10 @@ async def handle_vault_ingest_http_trigger(
         return Response.from_json({"error": "missing string key"}, status=400)
 
     config = load_config(env)
-    if not key.startswith(config.inbox_prefix):
+    user_id = parse_user_id_from_inbox_key(key, config.inbox_prefix)
+    if not user_id:
         return Response.from_json(
-            {"error": f"key must be under {config.inbox_prefix!r}"},
+            {"error": f"key must be of format <user_id>/{config.inbox_prefix.strip('/')}/<filename>"},
             status=400,
         )
     if not await has_budget(env.VAULT_DB, config.daily_neuron_budget):
@@ -134,7 +136,7 @@ async def handle_vault_ingest_http_trigger(
     }
 
     try:
-        await process_r2_event(env, config, body, key)
+        await process_r2_event(env, config, body, key, user_id)
     except GeminiRequeueError as greq:
         return await _handle_provider_requeue(
             env,

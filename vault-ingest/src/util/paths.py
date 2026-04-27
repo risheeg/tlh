@@ -7,6 +7,13 @@ def path_basename(key: str) -> str:
     return key.rstrip("/").split("/")[-1] or "document"
 
 
+def parse_user_id_from_inbox_key(key: str, inbox_prefix: str) -> str | None:
+    parts = key.split("/")
+    if len(parts) >= 3 and parts[1] == inbox_prefix.strip("/"):
+        return parts[0]
+    return None
+
+
 def content_type_for_key(key: str, fallback: str | None = None) -> str:
     if fallback:
         return fallback
@@ -38,21 +45,21 @@ def is_plain_text(content_type: str, key: str) -> bool:
     )
 
 
-def processed_key(prefix: str, category: str, document_id: str, original_key: str) -> str:
+def processed_key(user_id: str, prefix: str, category: str, document_id: str, original_key: str) -> str:
     name = path_basename(original_key)
     stem, _, ext = name.rpartition(".")
     stem = quote(stem, safe="._-")
     ext  = quote(ext,  safe="._-")
-    return f"{prefix.rstrip('/')}/{category}/{stem}_{document_id}.{ext}"
+    return f"{user_id}/{prefix.rstrip('/')}/{category}/{stem}_{document_id}.{ext}"
 
 
-def parsed_key(prefix: str, category: str, document_id: str, original_key: str) -> str:
+def parsed_key(user_id: str, prefix: str, category: str, document_id: str, original_key: str) -> str:
     stem = path_basename(original_key).rpartition(".")[0] or path_basename(original_key)
     stem = quote(stem, safe="._-")
-    return f"{prefix.rstrip('/')}/{category}/{stem}_{document_id}.json"
+    return f"{user_id}/{prefix.rstrip('/')}/{category}/{stem}_{document_id}.json"
 
 
-def markdown_key(prefix: str, category: str, document_id: str, original_key: str) -> str:
+def markdown_key(user_id: str, prefix: str, category: str, document_id: str, original_key: str) -> str:
     stem = path_basename(original_key).rpartition(".")[0] or path_basename(original_key)
     stem = quote(stem, safe="._-")
-    return f"{prefix.rstrip('/')}/{category}/{stem}_{document_id}.md"
+    return f"{user_id}/{prefix.rstrip('/')}/{category}/{stem}_{document_id}.md"

@@ -13,7 +13,7 @@ from config import load_config
 from neon_payload import neon_parsed_view
 from util.js_interop import js_to_py, to_js_obj
 from util.json_parse import json_dumps
-from util.paths import content_type_for_key, markdown_key, parsed_key, processed_key
+from util.paths import content_type_for_key, markdown_key, parsed_key, processed_key, parse_user_id_from_inbox_key
 from util.time import utc_now_iso
 
 RETRY_IN_24_HOURS = 24 * 60 * 60
@@ -57,8 +57,14 @@ class Default(WorkerEntrypoint):
                     continue
 
                 key = _event_key(body)
-                if not key or not key.startswith(config.inbox_prefix):
-                    print(f"Ignoring non-inbox R2 event: {body}")
+                if not key:
+                    print(f"Ignoring missing key: {body}")
+                    msg.ack()
+                    continue
+
+                user_id = parse_user_id_from_inbox_key(key, config.inbox_prefix)
+                if not user_id:
+                    print(f"Ignoring non-inbox R2 event or missing user_id: {body}")
                     msg.ack()
                     continue
 
@@ -67,7 +73,7 @@ class Default(WorkerEntrypoint):
                     msg.retry(delaySeconds=RETRY_IN_24_HOURS)
                     continue
 
-                await self._process_r2_event(worker_env, config, body, key)
+                await self._process_r2_event(worker_env, config, body, key, user_id)
                 msg.ack()
             except GeminiRequeueError as greq:
                 delay = gemini_requeue_delay_seconds(greq)
@@ -83,7 +89,7 @@ class Default(WorkerEntrypoint):
                 print(f"Vault ingest message failed (no retry): {err_s}")
                 msg.ack()
 
-    async def _process_r2_event(self, env, config, body: dict, key: str) -> None:
+    async def _process_r2_event(self, env, config, body: dict, key: str, user_id: str) -> None:
         bucket = env.VAULT_BUCKET
         obj = await bucket.get(key)
         if obj is None:
@@ -110,9 +116,9 @@ class Default(WorkerEntrypoint):
         document_id = _document_id(key)
         category = classification["category"]
         subcategory = classification["subcategory"]
-        final_key = processed_key(config.processed_prefix, category, document_id, key)
-        json_key = parsed_key(config.parsed_prefix, category, document_id, key)
-        md_key = markdown_key(config.parsed_prefix, category, document_id, key)
+        final_key = processed_key(user_id, config.processed_prefix, category, document_id, key)
+        json_key = parsed_key(user_id, config.parsed_prefix, category, document_id, key)
+        md_key = markdown_key(user_id, config.parsed_prefix, category, document_id, key)
 
         parsed_payload = classification["parsed_json"]
         # Version is controlled by application code (not model output).
@@ -139,6 +145,7 @@ class Default(WorkerEntrypoint):
             config.neon_connection_string,
             {
                 "id": document_id,
+                "user_id": user_id,
                 "upload_date": body.get("eventTime") or now,
                 "processed_at": now,
                 "category": category,
