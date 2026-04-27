@@ -71,7 +71,19 @@ Stores high-level position totals for accounts where lot-level tracking is unnec
 | `quantity` | Numeric (18, 8) | Not Null | Total units held in the account. |
 | `last_updated` | DateTime with time zone | Not Null | Timestamp of the latest update. Set by the app in UTC. |
 | `cost_basis` | Numeric (18, 2) | Nullable | Total cost basis for the aggregate position. |
-| `asset_type` | `assettype` | Not Null, DB/App default: `Equity` | Asset category, currently `Equity` or `Cash`. |
+
+---
+
+### Base Table: `cash_holdings`
+Stores simple cash balances for accounts.
+
+| Field | Type | Constraints | Description |
+| :--- | :--- | :--- | :--- |
+| `id` | UUID | Primary Key | Unique identifier for the cash record. |
+| `user_id` | UUID | Not Null, Foreign Key (`users.id`), Indexed | Owner of the cash. |
+| `account_id` | UUID | Not Null, Foreign Key (`accounts.id`), Indexed | Account containing this cash. |
+| `amount` | Numeric (18, 2) | Not Null | Total cash balance. |
+| `last_updated` | DateTime with time zone | Not Null | Last time the balance was updated. |
 
 ---
 
@@ -148,14 +160,14 @@ Unifies active tax lots and aggregate positions into one book-value position str
 
 | Field | Type | Description |
 | :--- | :--- | :--- |
-| `holding_id` | UUID | Deterministic holding identifier for lot aggregates, or `aggregate_positions.id` for aggregate rows. |
+| `holding_id` | UUID | Deterministic holding identifier for lot aggregates, or `aggregate_positions.id`/`cash_holdings.id` for others. |
 | `user_id` | UUID | Owner of the holding. |
 | `account_id` | UUID | Account containing the holding. |
-| `ticker` | String | Asset symbol. |
-| `quantity` | Numeric | Total quantity for the holding. |
-| `cost_basis` | Numeric | Total cost basis. For lots, derived from `quantity * original_purchase_price`. |
-| `holding_type` | Text | `lot` or `aggregate`. |
-| `asset_type` | Text | `Equity` for lots, or the aggregate position's `asset_type`. |
+| `ticker` | String | Asset symbol (or `CASH`). |
+| `quantity` | Numeric | Total quantity or cash amount for the holding. |
+| `cost_basis` | Numeric | Total cost basis. |
+| `holding_type` | Text | `lot`, `aggregate`, or `cash`. |
+| `asset_type` | Text | `Equity` or `Cash`. |
 
 ---
 
@@ -177,7 +189,7 @@ Adds price and classification data to `portfolio_aggregated_positions`.
 | `expense_ratio` | Numeric | Expense ratio from `stock_prices`, or `0` for cash. |
 | `current_price` | Numeric | Latest price from `stock_prices`, or `1.0` for cash. |
 | `market_value` | Numeric | Current market value (`quantity * current_price`), or cash quantity for cash holdings. |
-| `price_last_updated` | DateTime with time zone | Latest price timestamp, or current UTC timestamp for cash. |
+| `price_last_updated` | DateTime with time zone | Latest price timestamp, or the `last_updated` timestamp for cash. |
 
 ---
 
@@ -200,11 +212,13 @@ users
  ├── accounts                 (one-to-many)
  ├── lots                     (one-to-many, taxable accounts only)
  ├── aggregate_positions      (one-to-many)
+ ├── cash_holdings            (one-to-many)
  └── net_worth_snapshots      (one-to-many)
 
 accounts
  ├── lots                     (one-to-many, type=taxable only)
- └── aggregate_positions      (one-to-many)
+ ├── aggregate_positions      (one-to-many)
+ └── cash_holdings            (one-to-many)
 
 stock_prices
  └── portfolio_holdings_enriched (left join by ticker for equity holdings)

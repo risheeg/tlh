@@ -65,6 +65,9 @@ class User(Base):
     aggregate_positions: Mapped[list["AggregatePosition"]] = relationship(
         "AggregatePosition", back_populates="user"
     )
+    cash_holdings: Mapped[list["CashHolding"]] = relationship(
+        "CashHolding", back_populates="user"
+    )
 
 
 class Account(Base):
@@ -87,6 +90,9 @@ class Account(Base):
     lots: Mapped[list["Lot"]] = relationship("Lot", back_populates="account")
     aggregate_positions: Mapped[list["AggregatePosition"]] = relationship(
         "AggregatePosition", back_populates="account"
+    )
+    cash_holdings: Mapped[list["CashHolding"]] = relationship(
+        "CashHolding", back_populates="account"
     )
 
 
@@ -135,15 +141,34 @@ class AggregatePosition(Base):
     ticker: Mapped[str] = mapped_column(String, index=True, nullable=False)
     quantity: Mapped[float] = mapped_column(Numeric(18, 8), nullable=False)
     cost_basis: Mapped[float | None] = mapped_column(Numeric(18, 2), nullable=True)
-    asset_type: Mapped[AssetType] = mapped_column(
-        Enum(AssetType), nullable=False, default=AssetType.Equity
-    )
     last_updated: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
     )
 
     user: Mapped["User"] = relationship("User", back_populates="aggregate_positions")
     account: Mapped["Account"] = relationship("Account", back_populates="aggregate_positions")
+
+
+class CashHolding(Base):
+    """Simple cash balance for an account."""
+    __tablename__ = "cash_holdings"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id"), index=True, nullable=False
+    )
+    account_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("accounts.id"), index=True, nullable=False
+    )
+    amount: Mapped[float] = mapped_column(Numeric(18, 2), nullable=False)
+    last_updated: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
+    )
+
+    user: Mapped["User"] = relationship("User", back_populates="cash_holdings")
+    account: Mapped["Account"] = relationship("Account", back_populates="cash_holdings")
 
 
 class StockPrice(Base):

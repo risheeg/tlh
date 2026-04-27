@@ -40,19 +40,27 @@ def ensure_db_constraints(engine) -> None:
                 ALTER COLUMN current_adjusted_basis TYPE NUMERIC(18, 8)
                 USING current_adjusted_basis::numeric;
 
+                -- Create cash_holdings table if missing (idempotent setup)
+                CREATE TABLE IF NOT EXISTS cash_holdings (
+                    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                    user_id UUID NOT NULL REFERENCES users(id),
+                    account_id UUID NOT NULL REFERENCES accounts(id),
+                    amount NUMERIC(18, 2) NOT NULL,
+                    last_updated TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+                );
+
                 CREATE VIEW portfolio_aggregated_positions AS
                 SELECT
                     md5(l.account_id::text || l.ticker)::uuid AS holding_id,
                     l.user_id,
                     l.account_id,
                     l.ticker,
-                    SUM(l.quantity) AS quantity,
-                    SUM(l.quantity * l.original_purchase_price) AS cost_basis,
+                    l.quantity,
+                    l.quantity * l.original_purchase_price AS cost_basis,
                     'lot'::text AS holding_type,
                     'Equity'::text AS asset_type
                 FROM lots l
                 WHERE l.status = 'active'
-                GROUP BY l.user_id, l.account_id, l.ticker
 
                 UNION ALL
 
@@ -64,8 +72,22 @@ def ensure_db_constraints(engine) -> None:
                     ap.quantity,
                     ap.cost_basis,
                     'aggregate'::text AS holding_type,
-                    ap.asset_type::text AS asset_type
-                FROM aggregate_positions ap;
+                    'Equity'::text AS asset_type
+                FROM aggregate_positions ap
+                WHERE asset_type = 'Equity' OR asset_type IS NULL
+
+                UNION ALL
+
+                SELECT
+                    ch.id AS holding_id,
+                    ch.user_id,
+                    ch.account_id,
+                    'CASH'::text AS ticker,
+                    ch.amount AS quantity,
+                    ch.amount AS cost_basis,
+                    'cash'::text AS holding_type,
+                    'Cash'::text AS asset_type
+                FROM cash_holdings ch;
 
                 CREATE VIEW portfolio_holdings_enriched AS
                 SELECT
@@ -76,6 +98,7 @@ def ensure_db_constraints(engine) -> None:
                     pap.quantity,
                     pap.cost_basis,
                     CASE
+                        WHEN pap.asset_type = 'Cash' THEN 1.0
                         WHEN pap.quantity > 0 THEN pap.cost_basis / pap.quantity
                         ELSE 0
                     END AS original_purchase_price,
@@ -98,10 +121,16 @@ def ensure_db_constraints(engine) -> None:
                         ELSE pap.quantity * sp.price
                     END AS market_value,
                     CASE
-                        WHEN pap.asset_type = 'Cash' THEN CURRENT_TIMESTAMP AT TIME ZONE 'UTC'
+                        WHEN pap.asset_type = 'Cash' THEN pap.last_updated
                         ELSE sp.last_updated
                     END AS price_last_updated
-                FROM portfolio_aggregated_positions pap
+                FROM (
+                    SELECT pap.*, 
+                           COALESCE(ap.last_updated, ch.last_updated, CURRENT_TIMESTAMP) as last_updated
+                    FROM portfolio_aggregated_positions pap
+                    LEFT JOIN aggregate_positions ap ON pap.holding_id = ap.id AND pap.holding_type = 'aggregate'
+                    LEFT JOIN cash_holdings ch ON pap.holding_id = ch.id AND pap.holding_type = 'cash'
+                ) pap
                 LEFT JOIN stock_prices sp ON pap.ticker = sp.ticker AND pap.asset_type = 'Equity';
                 """
             )
@@ -173,7 +202,7 @@ def ensure_db_constraints(engine) -> None:
                             ALTER TABLE vault_ingest.documents ADD COLUMN user_id UUID;
                         END IF;
 
-                        -- Ensure user_id is NOT NULL (assuming users are already correctly associated)
+                        -- Ensure user_id is NOT NULL
                         ALTER TABLE vault_ingest.documents ALTER COLUMN user_id SET NOT NULL;
 
                         -- Add Foreign Key if missing

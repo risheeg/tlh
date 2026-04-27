@@ -85,7 +85,6 @@ class AggregatePositionCreate(BaseModel):
     ticker: str = Field(..., min_length=1, max_length=10)
     quantity: Decimal = Field(..., decimal_places=8)
     cost_basis: Decimal | None = Field(default=None, decimal_places=2)
-    asset_type: AssetType = AssetType.Equity
 
 
 class AggregatePositionUploadRequest(BaseModel):
@@ -101,7 +100,22 @@ class AggregatePositionResponse(BaseModel):
     ticker: str
     quantity: Decimal
     cost_basis: Decimal | None
-    asset_type: AssetType
+    last_updated: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class CashHoldingCreate(BaseModel):
+    """Fields required to create or update a cash balance."""
+    account_id: uuid.UUID
+    amount: Decimal = Field(..., decimal_places=2)
+
+
+class CashHoldingResponse(BaseModel):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    account_id: uuid.UUID
+    amount: Decimal
     last_updated: datetime
 
     model_config = {"from_attributes": True}

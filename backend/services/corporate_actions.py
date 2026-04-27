@@ -81,10 +81,7 @@ def _affected_aggregate_positions(
 ) -> list[AggregatePosition]:
     return (
         db.query(AggregatePosition)
-        .filter(
-            AggregatePosition.ticker == payload.ticker,
-            AggregatePosition.asset_type == AssetType.Equity,
-        )
+        .filter(AggregatePosition.ticker == payload.ticker)
         .all()
     )
 
