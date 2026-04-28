@@ -55,12 +55,13 @@ def ensure_db_constraints(engine) -> None:
                     l.user_id,
                     l.account_id,
                     l.ticker,
-                    l.quantity,
-                    l.quantity * l.original_purchase_price AS cost_basis,
+                    SUM(l.quantity) AS quantity,
+                    SUM(l.quantity * l.original_purchase_price) AS cost_basis,
                     'lot'::text AS holding_type,
                     'Equity'::text AS asset_type
                 FROM lots l
                 WHERE l.status = 'active'
+                GROUP BY l.user_id, l.account_id, l.ticker
 
                 UNION ALL
 
@@ -220,4 +221,3 @@ def ensure_db_constraints(engine) -> None:
                 """
             )
         )
-

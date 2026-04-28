@@ -1,21 +1,31 @@
 from decimal import Decimal
 from collections import defaultdict
-from sqlalchemy import func, case
+from sqlalchemy import func
 from sqlalchemy.orm import Session
-from models.models import PortfolioHoldingEnriched, StockPrice
+from models.models import PortfolioHoldingEnriched
 from schemas.portfolio import PortfolioSnapshot
 
 def get_portfolio_snapshot(db: Session, user_id) -> PortfolioSnapshot | None:
     """
     Returns a unified snapshot of all holdings (lots + positions) enriched with current prices.
     """
-    results = db.query(PortfolioHoldingEnriched).filter(PortfolioHoldingEnriched.user_id == user_id).all()
+    results = (
+        db.query(PortfolioHoldingEnriched)
+        .filter(PortfolioHoldingEnriched.user_id == user_id)
+        .all()
+    )
     
     if not results:
         return None
-        
-    total_net_worth = sum(res.market_value for res in results if res.market_value)
-    last_updated = max((res.price_last_updated for res in results if res.price_last_updated), default=None)
+
+    total_net_worth, last_updated = (
+        db.query(
+            func.coalesce(func.sum(PortfolioHoldingEnriched.market_value), 0),
+            func.max(PortfolioHoldingEnriched.price_last_updated),
+        )
+        .filter(PortfolioHoldingEnriched.user_id == user_id)
+        .one()
+    )
     
     return PortfolioSnapshot(
         user_id=user_id,
