@@ -117,7 +117,13 @@ async def handle_vault_ingest_http_trigger(
     user_id = parse_user_id_from_inbox_key(key, config.inbox_prefix)
     if not user_id:
         return Response.from_json(
-            {"error": f"key must be of format <user_id>/{config.inbox_prefix.strip('/')}/<filename>"},
+            {
+                "error": (
+                    "key must be in the inbox prefix, e.g. "
+                    f"'{config.inbox_prefix.strip('/')}/<filename>' or "
+                    f"'{config.inbox_prefix.strip('/')}/<user_id>/<filename>'"
+                )
+            },
             status=400,
         )
     if not await has_budget(env.VAULT_DB, config.daily_neuron_budget):

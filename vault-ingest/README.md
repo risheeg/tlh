@@ -36,13 +36,15 @@ Apply the D1 migration:
 npm run d1:migrate:remote
 ```
 
-Configure the R2 notification after the queue exists:
+Configure the R2 notification after the queue exists.
+
+Important: if you upload objects as `<user_id>/inbox/...` (recommended), do **not** set `--prefix "inbox/"` because it will never match those keys.
 
 ```bash
 npx wrangler r2 bucket notification create vault-ingest \
   --event-type object-create \
   --queue vault-ingest \
-  --prefix "inbox/"
+  # no --prefix: match all keys, Worker filters to <user_id>/inbox/...
 ```
 
 Set the Neon connection string as a Worker secret:

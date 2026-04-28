@@ -70,6 +70,7 @@ class Default(WorkerEntrypoint):
                     print(f"Ignoring non-inbox R2 event or missing user_id: {body}")
                     msg.ack()
                     continue
+                print(f"[{key}] ingest start (user_id={user_id})")
 
                 if not await has_budget(worker_env.VAULT_DB, config.daily_neuron_budget):
                     print("Daily AI neuron budget exhausted; retrying in 24 hours")
@@ -77,6 +78,7 @@ class Default(WorkerEntrypoint):
                     continue
 
                 await self._process_r2_event(worker_env, config, body, key, user_id)
+                print(f"[{key}] ingest done")
                 msg.ack()
             except GeminiRequeueError as greq:
                 delay = gemini_requeue_delay_seconds(greq)

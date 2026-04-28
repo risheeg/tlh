@@ -8,9 +8,21 @@ def path_basename(key: str) -> str:
 
 
 def parse_user_id_from_inbox_key(key: str, inbox_prefix: str) -> str | None:
+    """
+    Extract the user_id for an inbox object key.
+
+    Supported formats:
+    - <user_id>/inbox/<filename>         -> <user_id>
+    """
+    prefix = inbox_prefix.strip("/")
     parts = key.split("/")
-    if len(parts) >= 3 and parts[1] == inbox_prefix.strip("/"):
+    if len(parts) < 3 or not prefix:
+        return None
+
+    # Required: <user_id>/inbox/<filename>
+    if parts[1] == prefix and parts[0]:
         return parts[0]
+
     return None
 
 
