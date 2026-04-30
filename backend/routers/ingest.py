@@ -88,12 +88,13 @@ def upload_lots(payload: LotUploadRequest, db: Session = Depends(get_db)):
             external_ref_id=lot_data.external_ref_id,
         )
 
-        db.add(lot)
         try:
-            db.flush()  # surface unique constraint violations immediately
+            with db.begin_nested():
+                db.add(lot)
+                db.flush()  # surface unique constraint violations immediately
             created_lots.append(lot)
         except IntegrityError:
-            db.rollback()
+            # begin_nested automatically rolls back to the savepoint on error
             skipped += 1
 
     db.commit()
