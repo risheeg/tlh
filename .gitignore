@@ -61,3 +61,6 @@ vault-ingest/test/*
 vault-ingest/test/last-e2e/
 # Cursor agent skills (local; paths reference repo files)
 vault-ingest/.cursor/
+
+# vault-ingest/scripts: kept locally only (not in git)
+vault-ingest/scripts/
