@@ -64,3 +64,6 @@ vault-ingest/.cursor/
 
 # vault-ingest/scripts: kept locally only (not in git)
 vault-ingest/scripts/
+
+# backend/scripts: kept locally only (not in git)
+backend/scripts/
