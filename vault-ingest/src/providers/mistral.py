@@ -45,7 +45,7 @@ async def _fetch_with_retry(url, kwargs_factory, max_retries=5, base_delay=1.0):
                 continue
             raise MistralRequeueError("network", detail=str(e))
 
-        if r.status == 429 or r.status >= 500:
+        if r.status == 429 or r.status >= 500 or r.status == 404:
             text = await r.string()
             if max_retries <= 2:
                 raise RuntimeError(f"Mistral HTTP {r.status}: {text[:500]}")
