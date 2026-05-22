@@ -75,11 +75,16 @@ def _parse_retry_after(response):
 #
 # asyncio.sleep is FREE on Cloudflare (no CPU cost), so the only hard
 # ceiling is the 15-minute (900s) queue consumer wall-clock limit.
-# A single document makes ~5 API calls (upload, OCR, S1, S2, S2-retry),
-# each with its own retry loop.  In the worst case every call exhausts
-# its full budget, so:  5 × budget + ~60s work ≤ 900s  →  budget ≤ 168s.
-# We use 150s to leave comfortable headroom.
-_INLINE_WALL_BUDGET_S = 150
+#
+# A document makes ~5 sequential API calls (upload, OCR, S1, S2, S2-retry),
+# but upload & OCR hit different Mistral rate-limit buckets than chat, and
+# sequential chat calls rarely all hit limits (sleeping through one resets
+# the window for the next).  Realistic worst case is 2 calls exhausting
+# their budget; pathological is 3.
+#
+#   2 × 250 + 60s work = 560s  ≈  9.3 min  ✓
+#   3 × 250 + 60s work = 810s  ≈ 13.5 min  ✓  (still under 15 min)
+_INLINE_WALL_BUDGET_S = 250
 # Cap on any single inline sleep to keep individual attempts short.
 _MAX_SINGLE_SLEEP_S = 15
 
