@@ -72,7 +72,11 @@ def _parse_retry_after(response):
 
 # Inline budget: total wall-clock seconds the worker may sleep across all
 # retries before giving up and requeueing to the Cloudflare Queue.
-_INLINE_WALL_BUDGET_S = 90
+# asyncio.sleep is FREE on Cloudflare (no CPU cost), so the only hard
+# ceiling is the 15-minute queue consumer wall-clock limit.  We use 5 min
+# to stay well within that while maximising inline retries (which preserve
+# expensive OCR / Stage-1 state that a requeue would redo from scratch).
+_INLINE_WALL_BUDGET_S = 300
 # Cap on any single inline sleep to keep individual attempts short.
 _MAX_SINGLE_SLEEP_S = 15
 
