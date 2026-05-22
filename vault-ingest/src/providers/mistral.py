@@ -26,8 +26,8 @@ async def _fetch_with_retry(url, kwargs_factory, max_retries=5, base_delay=1.0):
     """Hybrid approach: Try in-worker short sleeps for immediate recovery, 
     but throw MistralRequeueError to offload long backoffs to Cloudflare Queues."""
     
-    # Limit in-worker sleeps to prevent CF Worker wall-clock timeouts
-    in_worker_retries = min(2, max_retries) if max_retries > 2 else 0
+    # Handle most rate limits in-worker to avoid dropping OCR state
+    in_worker_retries = 8
     attempt = 0
     
     while True:
