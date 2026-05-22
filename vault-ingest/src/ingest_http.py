@@ -7,6 +7,7 @@ from workers import Response
 from storage.budget import has_budget
 from config import load_config
 from providers.gemini import GeminiRequeueError, gemini_requeue_delay_seconds
+from providers.mistral import MistralRequeueError, mistral_requeue_delay_seconds
 from util.paths import parse_user_id_from_inbox_key
 
 TRIGGER_PATH = "/__vault_ingest/trigger"
@@ -153,6 +154,17 @@ async def handle_vault_ingest_http_trigger(
             kind=greq.kind,
             detail=greq.detail,
             delay=gemini_requeue_delay_seconds(greq),
+        )
+    except MistralRequeueError as mreq:
+        return await _handle_provider_requeue(
+            env,
+            to_js,
+            body,
+            key,
+            provider="mistral",
+            kind=mreq.kind,
+            detail=mreq.detail,
+            delay=mistral_requeue_delay_seconds(mreq),
         )
     except Exception as exc:
         err_s = _err_body(str(exc))
