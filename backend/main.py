@@ -12,6 +12,7 @@ from routers import accounts, corporate_actions, ingest, prices, portfolio
 from services.prices import sync_stock_prices
 from services.portfolio.history_service import create_net_worth_snapshot
 from services.tlh_service import check_and_notify_tlh
+from services.weekly_digest_service import send_monthly_digest
 from models.models import User
 from apscheduler.schedulers.background import BackgroundScheduler
 
@@ -95,8 +96,31 @@ def daily_maintenance_job():
     finally:
         db.close()
 
+def monthly_digest_job():
+    """Send a monthly portfolio digest email on the 1st at 08:00 UTC."""
+    logger.info("Monthly digest job started.")
+    db = SessionLocal()
+    try:
+        users = db.query(User).all()
+        for user in users:
+            try:
+                result = send_monthly_digest(db, str(user.id))
+                logger.info(
+                    "Monthly digest sent: email=%s, subject=%s",
+                    result["email"],
+                    result["subject"],
+                )
+            except Exception:
+                logger.exception("Monthly digest failed for user %s", user.id)
+    finally:
+        db.close()
+    logger.info("Monthly digest job finished.")
+
+
 # Run once at 00:00 every day
 scheduler.add_job(daily_maintenance_job, 'cron', hour=0, minute=0)
+# Run on the 1st of every month at 08:00 UTC
+scheduler.add_job(monthly_digest_job, 'cron', day=1, hour=8, minute=0)
 scheduler.start()
 
 app.include_router(ingest.router)

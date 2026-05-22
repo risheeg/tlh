@@ -122,7 +122,7 @@ def _get_ticker_balances(db: Session, user_id, config: SpreadsheetConfig, accoun
         if result.is_cash:
             cash_balances_per_column[column_index] += market_value
         else:
-            key = (result.category, result.ticker)
+            key = (result.category or "Unknown", result.ticker or "Unknown")
             if key not in ticker_balances:
                 ticker_balances[key] = [Decimal(0)] * (num_data_columns + 1)
                 ticker_expense_ratios[key] = Decimal(str(result.expense_ratio or 0))

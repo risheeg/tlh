@@ -8,59 +8,170 @@ from js import Blob, FormData, TextDecoder
 from pyodide.http import pyfetch
 
 class MistralRequeueError(Exception):
-    def __init__(self, kind, detail=None):
+    def __init__(self, kind, detail=None, retry_after_seconds=None):
         self.kind = kind
         self.detail = detail
+        self.retry_after_seconds = retry_after_seconds
         super().__init__(self.__str__())
 
     def __str__(self):
         parts = [f"Mistral requeue {self.kind}"]
         if self.detail:
             parts.append(f"({self.detail})")
+        if self.retry_after_seconds is not None:
+            parts.append(f"retry_after={self.retry_after_seconds}s")
         return " ".join(parts)
 
+
 def mistral_requeue_delay_seconds(err):
+    """Determine the Cloudflare Queue requeue delay.
+
+    Priority order:
+    1. Exact ``Retry-After`` value from the Mistral API (clamped 1–86 400 s).
+    2. Fallback: random 30–60 s.
+    """
+    if getattr(err, "retry_after_seconds", None) is not None:
+        return max(1, min(int(err.retry_after_seconds), 86_400))
     return 30 + random.randint(0, 30)
 
+
+# ---------------------------------------------------------------------------
+# Retry-After header extraction
+# ---------------------------------------------------------------------------
+
+def _parse_retry_after(response):
+    """Return an integer seconds value from the ``Retry-After`` header, or None."""
+    headers = getattr(response, "headers", None)
+    hget = getattr(headers, "get", None) if headers else None
+    if hget is None:
+        return None
+    val = hget("Retry-After") or hget("retry-after")
+    if not val:
+        return None
+    s = str(val).strip()
+    # Retry-After can be an integer (seconds) or an HTTP-date.
+    # Mistral always sends seconds; handle both defensively.
+    try:
+        return max(0, int(s))
+    except ValueError:
+        pass
+    try:
+        from email.utils import parsedate_to_datetime
+        from datetime import datetime, timezone
+        dt = parsedate_to_datetime(s)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return max(0, int((dt - datetime.now(timezone.utc)).total_seconds()))
+    except Exception:
+        return None
+
+
+# ---------------------------------------------------------------------------
+# Core retry loop
+# ---------------------------------------------------------------------------
+
+# Inline budget: total wall-clock seconds the worker may sleep across all
+# retries before giving up and requeueing to the Cloudflare Queue.
+_INLINE_WALL_BUDGET_S = 90
+# Cap on any single inline sleep to keep individual attempts short.
+_MAX_SINGLE_SLEEP_S = 15
+
 async def _fetch_with_retry(url, kwargs_factory, max_retries=5, base_delay=1.0):
-    """Hybrid approach: Try in-worker short sleeps for immediate recovery, 
-    but throw MistralRequeueError to offload long backoffs to Cloudflare Queues."""
-    
-    # Handle most rate limits in-worker to avoid dropping OCR state
-    in_worker_retries = 8
+    """Time-budget-aware retry loop.
+
+    Instead of a fixed retry count, the loop tracks *cumulative* inline
+    sleep time.  As long as the next sleep fits within ``_INLINE_WALL_BUDGET_S``
+    the retry happens in-worker (preserving OCR / Stage-1 state).  Once the
+    budget is exhausted — or Mistral's ``Retry-After`` exceeds the remaining
+    budget — the request is requeued to Cloudflare Queues with a precise delay.
+
+    Decision tree for each retryable response:
+
+    1. Mistral sent ``Retry-After``?
+       a. Value fits in remaining wall budget → sleep exactly that long inline.
+       b. Value exceeds remaining budget     → requeue to queue with that delay.
+    2. No ``Retry-After`` → exponential backoff (capped at ``_MAX_SINGLE_SLEEP_S``).
+       a. Fits in remaining budget → sleep inline.
+       b. Doesn't fit              → requeue with a jittered 30–60 s delay.
+    """
+    total_slept = 0.0
     attempt = 0
-    
+
     while True:
         kwargs = kwargs_factory()
+
+        # ---- network-level failure ----
         try:
             r = await pyfetch(url, **kwargs)
         except Exception as e:
             if max_retries <= 2:
                 raise RuntimeError(f"Mistral request failed: {e}")
-            if attempt < in_worker_retries:
-                delay = base_delay * (2 ** attempt) + random.uniform(0, 0.5)
-                print(f"[Mistral] Network error {e}, short-sleeping for {delay:.1f}s (attempt {attempt+1})")
-                await asyncio.sleep(delay)
-                attempt += 1
-                continue
-            raise MistralRequeueError("network", detail=str(e))
+            delay = min(base_delay * (2 ** attempt), _MAX_SINGLE_SLEEP_S) + random.uniform(0, 0.5)
+            if total_slept + delay > _INLINE_WALL_BUDGET_S:
+                raise MistralRequeueError("network", detail=str(e))
+            print(
+                f"[Mistral] Network error {e}, sleeping {delay:.1f}s inline "
+                f"(attempt {attempt+1}, {total_slept:.0f}/{_INLINE_WALL_BUDGET_S}s used)"
+            )
+            await asyncio.sleep(delay)
+            total_slept += delay
+            attempt += 1
+            continue
 
-        if r.status == 429 or r.status >= 500 or r.status == 404:
-            text = await r.string()
-            if max_retries <= 2:
-                raise RuntimeError(f"Mistral HTTP {r.status}: {text[:500]}")
-            
-            if attempt < in_worker_retries:
-                delay = base_delay * (2 ** attempt) + random.uniform(0, 0.5)
-                print(f"[Mistral] HTTP {r.status}, short-sleeping for {delay:.1f}s (attempt {attempt+1})")
+        # ---- successful response ----
+        if not (r.status == 429 or r.status >= 500 or r.status == 404):
+            return r
+
+        # ---- retryable HTTP error ----
+        text = await r.string()
+        if max_retries <= 2:
+            raise RuntimeError(f"Mistral HTTP {r.status}: {text[:500]}")
+
+        kind = "rate_limit" if r.status == 429 else "transient"
+        retry_after = _parse_retry_after(r)
+        remaining_budget = _INLINE_WALL_BUDGET_S - total_slept
+
+        # Decide: sleep inline or requeue to Cloudflare?
+        if retry_after is not None:
+            # API told us exactly how long to wait.
+            if retry_after <= remaining_budget:
+                delay = retry_after + random.uniform(0, 1.0)
+                print(
+                    f"[Mistral] HTTP {r.status} (Retry-After={retry_after}s), "
+                    f"sleeping {delay:.1f}s inline (attempt {attempt+1}, "
+                    f"{total_slept:.0f}/{_INLINE_WALL_BUDGET_S}s used)"
+                )
                 await asyncio.sleep(delay)
+                total_slept += delay
                 attempt += 1
                 continue
-            
-            kind = "rate_limit" if r.status == 429 else "transient"
-            raise MistralRequeueError(kind, detail=f"HTTP {r.status} {text[:200]}")
-        
-        return r
+            else:
+                # Too long to wait inline — hand off to the queue.
+                raise MistralRequeueError(
+                    kind,
+                    detail=(
+                        f"HTTP {r.status} (Retry-After={retry_after}s "
+                        f"exceeds {remaining_budget:.0f}s remaining inline budget)"
+                    ),
+                    retry_after_seconds=retry_after,
+                )
+        else:
+            # No hint from Mistral — exponential backoff.
+            delay = min(base_delay * (2 ** attempt), _MAX_SINGLE_SLEEP_S) + random.uniform(0, 0.5)
+            if total_slept + delay <= remaining_budget:
+                print(
+                    f"[Mistral] HTTP {r.status}, sleeping {delay:.1f}s inline "
+                    f"(attempt {attempt+1}, {total_slept:.0f}/{_INLINE_WALL_BUDGET_S}s used)"
+                )
+                await asyncio.sleep(delay)
+                total_slept += delay
+                attempt += 1
+                continue
+            else:
+                raise MistralRequeueError(
+                    kind,
+                    detail=f"HTTP {r.status} {text[:200]} (exhausted {total_slept:.0f}s inline budget)",
+                )
 
 from providers.common import (
     document_to_text,
