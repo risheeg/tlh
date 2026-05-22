@@ -1,12 +1,68 @@
 """Mistral API path: OCR via Files + OCR endpoints, Chat for classification/extraction."""
 
+import asyncio
 import json
+import random
 
-from js import Blob, FormData, TextDecoder, Uint8Array
+from js import Blob, FormData, TextDecoder
 from pyodide.http import pyfetch
 
+class MistralRequeueError(Exception):
+    def __init__(self, kind, detail=None):
+        self.kind = kind
+        self.detail = detail
+        super().__init__(self.__str__())
+
+    def __str__(self):
+        parts = [f"Mistral requeue {self.kind}"]
+        if self.detail:
+            parts.append(f"({self.detail})")
+        return " ".join(parts)
+
+def mistral_requeue_delay_seconds(err):
+    return 30 + random.randint(0, 30)
+
+async def _fetch_with_retry(url, kwargs_factory, max_retries=5, base_delay=1.0):
+    """Hybrid approach: Try in-worker short sleeps for immediate recovery, 
+    but throw MistralRequeueError to offload long backoffs to Cloudflare Queues."""
+    
+    # Limit in-worker sleeps to prevent CF Worker wall-clock timeouts
+    in_worker_retries = min(2, max_retries) if max_retries > 2 else 0
+    attempt = 0
+    
+    while True:
+        kwargs = kwargs_factory()
+        try:
+            r = await pyfetch(url, **kwargs)
+        except Exception as e:
+            if max_retries <= 2:
+                raise RuntimeError(f"Mistral request failed: {e}")
+            if attempt < in_worker_retries:
+                delay = base_delay * (2 ** attempt) + random.uniform(0, 0.5)
+                print(f"[Mistral] Network error {e}, short-sleeping for {delay:.1f}s (attempt {attempt+1})")
+                await asyncio.sleep(delay)
+                attempt += 1
+                continue
+            raise MistralRequeueError("network", detail=str(e))
+
+        if r.status == 429 or r.status >= 500:
+            text = await r.string()
+            if max_retries <= 2:
+                raise RuntimeError(f"Mistral HTTP {r.status}: {text[:500]}")
+            
+            if attempt < in_worker_retries:
+                delay = base_delay * (2 ** attempt) + random.uniform(0, 0.5)
+                print(f"[Mistral] HTTP {r.status}, short-sleeping for {delay:.1f}s (attempt {attempt+1})")
+                await asyncio.sleep(delay)
+                attempt += 1
+                continue
+            
+            kind = "rate_limit" if r.status == 429 else "transient"
+            raise MistralRequeueError(kind, detail=f"HTTP {r.status} {text[:200]}")
+        
+        return r
+
 from providers.common import (
-    array_buffer_to_bytes,
     document_to_text,
     markdown_breakdown,
 )
@@ -41,21 +97,23 @@ def _mistral_ocr_uses_file_upload(content_type):
 # Mistral Files API — upload / delete (private, workspace-scoped)
 # ---------------------------------------------------------------------------
 
-async def _mistral_upload_file(api_key, raw_bytes, file_name, content_type):
+async def _mistral_upload_file(api_key, array_buffer, file_name, content_type):
     """Upload a file to Mistral Files API for OCR processing."""
     blob = Blob.new(
-        to_js_obj([Uint8Array.new(to_js_obj(list(raw_bytes)))]),
+        to_js_obj([array_buffer]),
         to_js_obj({"type": content_type}),
     )
-    form = FormData.new()
-    form.append("file", blob, file_name)
-    form.append("purpose", "ocr")
-    r = await pyfetch(
-        f"{_MISTRAL_API_BASE}/files",
-        method="POST",
-        headers={"Authorization": f"Bearer {api_key}"},
-        body=form,
-    )
+    def make_kwargs():
+        form = FormData.new()
+        form.append("file", blob, file_name)
+        form.append("purpose", "ocr")
+        return {
+            "method": "POST",
+            "headers": {"Authorization": f"Bearer {api_key}"},
+            "body": form,
+        }
+
+    r = await _fetch_with_retry(f"{_MISTRAL_API_BASE}/files", make_kwargs)
     text = await r.string()
     if r.status < 200 or r.status >= 300:
         raise RuntimeError(f"Mistral Files upload HTTP {r.status}: {text[:500]}")
@@ -70,10 +128,13 @@ async def _mistral_upload_file(api_key, raw_bytes, file_name, content_type):
 async def _mistral_delete_file(api_key, file_id):
     """Delete a file from Mistral after OCR processing. Best-effort."""
     try:
-        r = await pyfetch(
+        r = await _fetch_with_retry(
             f"{_MISTRAL_API_BASE}/files/{file_id}",
-            method="DELETE",
-            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            lambda: {
+                "method": "DELETE",
+                "headers": {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            },
+            max_retries=2
         )
         if r.status < 200 or r.status >= 300:
             text = await r.string()
@@ -93,11 +154,13 @@ async def _mistral_ocr(api_key, file_id):
         "model": MISTRAL_OCR_MODEL,
         "document": {"type": "file", "file_id": file_id},
     }
-    r = await pyfetch(
+    r = await _fetch_with_retry(
         f"{_MISTRAL_API_BASE}/ocr",
-        method="POST",
-        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-        body=json.dumps(body),
+        lambda: {
+            "method": "POST",
+            "headers": {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            "body": json.dumps(body),
+        }
     )
     text = await r.string()
     if r.status < 200 or r.status >= 300:
@@ -131,8 +194,7 @@ async def _document_to_text_mistral(env, api_key, key, content_type, array_buffe
         text = TextDecoder.new("utf-8").decode(array_buffer)
         return str(text), 0
     if _mistral_ocr_uses_file_upload(content_type):
-        raw = array_buffer_to_bytes(array_buffer)
-        file_id = await _mistral_upload_file(api_key, raw, file_name, content_type)
+        file_id = await _mistral_upload_file(api_key, array_buffer, file_name, content_type)
         try:
             markdown = await _mistral_ocr(api_key, file_id)
         finally:
@@ -170,15 +232,15 @@ async def _mistral_chat(api_key, model, messages, *, response_format=None, tempe
     body = {"model": model, "messages": messages, "temperature": temperature, "max_tokens": max_tokens}
     if response_format is not None:
         body["response_format"] = response_format
-    r = await pyfetch(
+    r = await _fetch_with_retry(
         f"{_MISTRAL_API_BASE}/chat/completions",
-        method="POST",
-        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-        body=json.dumps(body, ensure_ascii=False),
+        lambda: {
+            "method": "POST",
+            "headers": {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+            "body": json.dumps(body, ensure_ascii=False),
+        }
     )
     text = await r.string()
-    if r.status == 429:
-        raise RuntimeError(f"Mistral rate limited (429): {text[:300]}")
     if r.status < 200 or r.status >= 300:
         raise RuntimeError(f"Mistral Chat HTTP {r.status}: {text[:500]}")
     return json.loads(text)

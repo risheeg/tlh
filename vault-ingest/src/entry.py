@@ -7,6 +7,7 @@ from workers import Request, Response, WorkerEntrypoint
 
 from providers import classify_document
 from providers.gemini import GeminiRequeueError, gemini_requeue_delay_seconds
+from providers.mistral import MistralRequeueError, mistral_requeue_delay_seconds
 from ingest_http import handle_vault_ingest_http_trigger
 from storage.budget import add_neurons_consumed, has_budget
 from storage.neon import insert_document, document_id_exists
@@ -84,6 +85,13 @@ class Default(WorkerEntrypoint):
                 delay = gemini_requeue_delay_seconds(greq)
                 print(
                     f"[{key}] Gemini {greq.kind} (requeue{': ' + greq.detail if greq.detail else ''}); "
+                    f"msg.retry in {delay}s"
+                )
+                msg.retry(delaySeconds=delay)
+            except MistralRequeueError as mreq:
+                delay = mistral_requeue_delay_seconds(mreq)
+                print(
+                    f"[{key}] Mistral {mreq.kind} (requeue{': ' + mreq.detail if mreq.detail else ''}); "
                     f"msg.retry in {delay}s"
                 )
                 msg.retry(delaySeconds=delay)
