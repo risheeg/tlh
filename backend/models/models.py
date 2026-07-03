@@ -39,6 +39,12 @@ class AssetType(str, enum.Enum):
     Cash = "Cash"
 
 
+class TransactionType(str, enum.Enum):
+    buying = "buying"
+    selling = "selling"
+    acats = "acats"
+
+
 class LotStatus(str, enum.Enum):
     active = "active"
     closed = "closed"
@@ -67,6 +73,9 @@ class User(Base):
     )
     cash_holdings: Mapped[list["CashHolding"]] = relationship(
         "CashHolding", back_populates="user"
+    )
+    transactions: Mapped[list["Transaction"]] = relationship(
+        "Transaction", back_populates="user"
     )
 
 
@@ -123,6 +132,7 @@ class Lot(Base):
 
     user: Mapped["User"] = relationship("User", back_populates="lots")
     account: Mapped["Account"] = relationship("Account", back_populates="lots")
+    history: Mapped[list["LotHistory"]] = relationship("LotHistory", back_populates="lot")
 
 
 class AggregatePosition(Base):
@@ -205,6 +215,58 @@ class StockSplit(Base):
         UniqueConstraint("ticker", "effective_date", name="uq_stock_split_ticker_effective_date"),
     )
 
+
+class Transaction(Base):
+    """A financial transaction such as buying, selling, or ACATS transfer."""
+    __tablename__ = "transactions"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id"), index=True, nullable=False
+    )
+    type: Mapped[TransactionType] = mapped_column(Enum(TransactionType), nullable=False)
+    ticker: Mapped[str] = mapped_column(String, index=True, nullable=False)
+    quantity: Mapped[float] = mapped_column(Numeric(18, 8), nullable=False)
+    price: Mapped[float | None] = mapped_column(Numeric(18, 8), nullable=True)
+    transaction_date: Mapped[date] = mapped_column(Date, nullable=False)
+    origin_account_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("accounts.id"), index=True, nullable=True
+    )
+    destination_account_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("accounts.id"), index=True, nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
+    )
+
+    user: Mapped["User"] = relationship("User", back_populates="transactions")
+    origin_account: Mapped["Account"] = relationship("Account", foreign_keys=[origin_account_id])
+    destination_account: Mapped["Account"] = relationship("Account", foreign_keys=[destination_account_id])
+    lot_histories: Mapped[list["LotHistory"]] = relationship("LotHistory", back_populates="transaction")
+
+
+class LotHistory(Base):
+    """History of a lot, linking it to various transactions."""
+    __tablename__ = "lot_history"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    lot_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("lots.id"), index=True, nullable=False
+    )
+    transaction_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("transactions.id"), index=True, nullable=False
+    )
+    quantity_affected: Mapped[float] = mapped_column(Numeric(18, 8), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
+    )
+
+    lot: Mapped["Lot"] = relationship("Lot", back_populates="history")
+    transaction: Mapped["Transaction"] = relationship("Transaction", back_populates="lot_histories")
 
 
 class PortfolioAggregatedPosition(Base):

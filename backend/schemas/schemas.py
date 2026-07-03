@@ -7,7 +7,7 @@ from decimal import Decimal
 
 from pydantic import BaseModel, Field
 
-from models.models import AccountType, AssetType, LotStatus
+from models.models import AccountType, AssetType, LotStatus, TransactionType
 
 
 # ---------------------------------------------------------------------------
@@ -30,6 +30,18 @@ class AccountResponse(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class TransferLotsRequest(BaseModel):
+    user_id: uuid.UUID
+    origin_account_id: uuid.UUID
+    destination_account_id: uuid.UUID
+
+
+class TransferLotsResponse(BaseModel):
+    transferred_count: int
+    origin_account_id: uuid.UUID
+    destination_account_id: uuid.UUID
 
 
 # ---------------------------------------------------------------------------
@@ -176,6 +188,52 @@ class StockSplitPreviewResponse(BaseModel):
 class StockSplitApplyResponse(StockSplitPreviewResponse):
     stock_split: StockSplitResponse
     applied: bool
+
+
+# ---------------------------------------------------------------------------
+# Transaction & LotHistory schemas
+# ---------------------------------------------------------------------------
+
+class TransactionCreate(BaseModel):
+    user_id: uuid.UUID
+    type: TransactionType
+    ticker: str = Field(..., min_length=1, max_length=10)
+    quantity: Decimal = Field(..., decimal_places=8)
+    price: Decimal | None = Field(default=None, decimal_places=8)
+    transaction_date: date
+    origin_account_id: uuid.UUID | None = None
+    destination_account_id: uuid.UUID | None = None
+
+
+class TransactionResponse(BaseModel):
+    id: uuid.UUID
+    user_id: uuid.UUID
+    type: TransactionType
+    ticker: str
+    quantity: Decimal
+    price: Decimal | None
+    transaction_date: date
+    origin_account_id: uuid.UUID | None
+    destination_account_id: uuid.UUID | None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class LotHistoryCreate(BaseModel):
+    lot_id: uuid.UUID
+    transaction_id: uuid.UUID
+    quantity_affected: Decimal = Field(..., decimal_places=8)
+
+
+class LotHistoryResponse(BaseModel):
+    id: uuid.UUID
+    lot_id: uuid.UUID
+    transaction_id: uuid.UUID
+    quantity_affected: Decimal
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
 
 
 # ---------------------------------------------------------------------------
