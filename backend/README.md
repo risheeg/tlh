@@ -91,6 +91,7 @@ Base URL for local development: `http://localhost:8000`
 ### Accounts
 
 - `POST /accounts` - Create an account for a user. If the same `(user_id, name)` already exists, the existing account is returned.
+- `POST /accounts/transfer-lots` - Transfer all lots from an origin taxable account to a destination taxable account via ACATS.
 
 ### Ingest
 
