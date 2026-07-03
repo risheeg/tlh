@@ -13,7 +13,7 @@ The TLH backend uses a PostgreSQL database hosted on Neon. The live `public` sch
 | `accounttype` | `taxable`, `retirement`, `savings`, `checkings`, `cma` |
 | `assettype` | `Equity`, `Cash` |
 | `lotstatus` | `active`, `closed`, `ignored` |
-| `transactiontype` | `buying`, `selling`, `acats` |
+| `transactiontype` | `buying`, `selling`, `acats`, `fee` |
 
 ---
 
@@ -72,6 +72,7 @@ Stores financial transactions such as buying, selling, or ACATS transfers.
 | `quantity` | Numeric (18, 8) | Not Null | Quantity of shares transacted. |
 | `price` | Numeric (18, 8) | Nullable | Price per share (can be null for ACATS). |
 | `transaction_date` | Date | Not Null | Date the transaction occurred. |
+| `note` | String | Nullable | Optional note regarding the transaction. |
 | `origin_account_id` | UUID | Nullable, Foreign Key (`accounts.id`), Indexed | Origin account (useful for ACATS). |
 | `destination_account_id` | UUID | Nullable, Foreign Key (`accounts.id`), Indexed | Destination account (useful for ACATS). |
 | `created_at` | DateTime with time zone | Not Null | Timestamp of record creation. |

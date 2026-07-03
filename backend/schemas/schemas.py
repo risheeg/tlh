@@ -201,6 +201,7 @@ class TransactionCreate(BaseModel):
     quantity: Decimal = Field(..., decimal_places=8)
     price: Decimal | None = Field(default=None, decimal_places=8)
     transaction_date: date
+    note: str | None = None
     origin_account_id: uuid.UUID | None = None
     destination_account_id: uuid.UUID | None = None
 
@@ -213,6 +214,7 @@ class TransactionResponse(BaseModel):
     quantity: Decimal
     price: Decimal | None
     transaction_date: date
+    note: str | None
     origin_account_id: uuid.UUID | None
     destination_account_id: uuid.UUID | None
     created_at: datetime

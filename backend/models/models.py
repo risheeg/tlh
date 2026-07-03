@@ -43,6 +43,7 @@ class TransactionType(str, enum.Enum):
     buying = "buying"
     selling = "selling"
     acats = "acats"
+    fee = "fee"
 
 
 class LotStatus(str, enum.Enum):
@@ -231,6 +232,7 @@ class Transaction(Base):
     quantity: Mapped[float] = mapped_column(Numeric(18, 8), nullable=False)
     price: Mapped[float | None] = mapped_column(Numeric(18, 8), nullable=True)
     transaction_date: Mapped[date] = mapped_column(Date, nullable=False)
+    note: Mapped[str | None] = mapped_column(String, nullable=True)
     origin_account_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("accounts.id"), index=True, nullable=True
     )
