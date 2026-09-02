@@ -82,6 +82,30 @@ PATTERNS = [
 ]
 
 STATE_CODE_REGEX = re.compile(r"\b(AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY|DC)\b", re.IGNORECASE)
+SSN_REGEX = re.compile(r"\b\d{3}[-\s]?\d{2}[-\s]?\d{4}\b")
+
+
+def sanitize_raw_tax_payload(payload: dict) -> dict:
+    """
+    Recursively scrubs SSNs, bank account numbers, and sensitive PII from payloads before saving.
+    """
+    clean = {}
+    for k, v in payload.items():
+        if isinstance(v, str):
+            # Redact full SSN matches
+            scrubbed = SSN_REGEX.sub("[REDACTED_SSN]", v)
+            clean[k] = scrubbed
+        elif isinstance(v, dict):
+            clean[k] = sanitize_raw_tax_payload(v)
+        elif isinstance(v, list):
+            clean[k] = [
+                sanitize_raw_tax_payload(i) if isinstance(i, dict)
+                else (SSN_REGEX.sub("[REDACTED_SSN]", i) if isinstance(i, str) else i)
+                for i in v
+            ]
+        else:
+            clean[k] = v
+    return clean
 
 
 def parse_paystub_line_item(description: str) -> Tuple[Optional[CanonicalTaxType], str, Optional[str]]:

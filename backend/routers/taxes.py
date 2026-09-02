@@ -18,7 +18,7 @@ from schemas.taxes import (
     TaxDocumentEventResponse,
 )
 from services.taxes.calculator import compute_tax_projections_from_logs
-from services.taxes.parser import parse_paystub_line_item
+from services.taxes.parser import parse_paystub_line_item, sanitize_raw_tax_payload
 
 router = APIRouter(prefix="/taxes", tags=["taxes"])
 
@@ -89,7 +89,8 @@ def ingest_paystub(payload: PaystubIngestRequest, db: Session = Depends(get_db))
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-    # 1. Create append-only document event
+    # 1. Create append-only document event with sanitized raw payload
+    clean_payload = sanitize_raw_tax_payload(payload.raw_payload or {})
     doc_event = TaxDocumentEvent(
         user_id=payload.user_id,
         tax_year=payload.tax_year,
@@ -99,7 +100,7 @@ def ingest_paystub(payload: PaystubIngestRequest, db: Session = Depends(get_db))
         pay_period_start=payload.pay_period_start,
         pay_period_end=payload.pay_period_end,
         external_ref_id=payload.external_ref_id,
-        raw_payload=payload.raw_payload or {},
+        raw_payload=clean_payload,
     )
     db.add(doc_event)
     db.flush()
