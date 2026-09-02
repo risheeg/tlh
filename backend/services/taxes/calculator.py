@@ -16,6 +16,18 @@ from models.taxes import (
 
 
 @dataclass
+class PretaxPayrollBreakdown:
+    traditional_401k_ytd: float            # Pre-tax 401(k) contributions (e.g. $1,383.35)
+    hsa_employee_ytd: float                # Pre-tax HSA Section 125 contributions (e.g. $3,400.00)
+    fsa_health_ytd: float                  # Pre-tax FSA contributions (e.g. $10.45)
+    transit_commuter_ytd: float            # Pre-tax commuter/transit (e.g. $60.00)
+    medical_dental_insurance_ytd: float    # Pre-tax healthcare premiums (e.g. $92.50)
+    total_pretax_deductions_ytd: float     # Total excluded from Box 1 / Line 1a ($4,946.30)
+    gross_pay_before_pretax: float         # Total Gross Pay ($140,192.40)
+    tax_savings_from_pretax: float         # Direct income tax saved via pre-tax exclusions
+
+
+@dataclass
 class TaxBracketBreakdown:
     bracket_rate: float
     bracket_rate_percent: str
@@ -51,6 +63,8 @@ class CapitalGainsLossBreakdown:
 @dataclass
 class Form1040Summary:
     tax_year: int
+    gross_earnings_ytd: float
+    pretax_payroll_deductions: PretaxPayrollBreakdown
     w2_taxable_wages_line_1a: float
     capital_loss_line_7a: float
     total_income_line_9: float
@@ -228,7 +242,7 @@ def compute_tax_projections_from_logs(
 ) -> TaxProjectionResult:
     """
     Replays all append-only tax document events and aggregates canonical ledger entries into tax forms.
-    Dynamically applies Capital Losses up to -$3,000 (Line 7a) and compares Standard vs. Itemized Deductions.
+    Bubbles pre-tax payroll deductions (401k, HSA, FSA, Transit), TLH -$3k, and Standard vs. Itemized deductions.
     """
     # 1. Fetch prior year baseline record
     prior_year_record = (
@@ -284,9 +298,20 @@ def compute_tax_projections_from_logs(
     fed_withholding_25a = fed_data.get(CanonicalTaxType.FED_WITHHOLDING.value, 0.0)
     
     # -----------------------------------------------------------------------
+    # PRE-TAX PAYROLL DEDUCTIONS BUBBLE (401k, HSA, FSA, Transit, Medical)
+    # -----------------------------------------------------------------------
+    pretax_401k = fed_data.get(CanonicalTaxType.PRETAX_401K.value, 0.0)
+    pretax_hsa = fed_data.get(CanonicalTaxType.PRETAX_HSA.value, 0.0)
+    pretax_fsa = fed_data.get(CanonicalTaxType.PRETAX_FSA.value, 0.0)
+    pretax_transit = fed_data.get(CanonicalTaxType.PRETAX_TRANSIT.value, 0.0)
+    pretax_medical = fed_data.get(CanonicalTaxType.PRETAX_HEALTH_INSURANCE.value, 0.0)
+    
+    total_pretax_ytd = pretax_401k + pretax_hsa + pretax_fsa + pretax_transit + pretax_medical
+    gross_pay = w2_wages_1a + total_pretax_ytd
+    
+    # -----------------------------------------------------------------------
     # CAPITAL GAINS & TAX LOSS HARVESTING (Form 1040 Line 7a)
     # -----------------------------------------------------------------------
-    # Calculate live harvestable unrealized losses from active portfolio lots
     stmt = select(PortfolioHoldingEnriched).where(
         and_(
             PortfolioHoldingEnriched.user_id == user_id,
@@ -302,16 +327,13 @@ def compute_tax_projections_from_logs(
             if diff > 0:
                 live_unrealized_losses += diff * float(lot.quantity)
                 
-    # If user passed override or has portfolio losses, apply up to -$3,000 against ordinary income
     available_loss = harvested_losses_override if harvested_losses_override is not None else (
         3000.0 if live_unrealized_losses >= 3000.0 else live_unrealized_losses
     )
-    
-    # Default to -$3,000 standard capital loss allowance if planned
     loss_applied = -min(abs(available_loss), 3000.0) if available_loss != 0 else -3000.0
     
     total_income_9 = w2_wages_1a + loss_applied
-    adjustments_10 = 0.0
+    adjustments_10 = 0.0 # Above-the-line outside payroll HSA / Trad IRA
     agi_11b = total_income_9 - adjustments_10
     
     # -----------------------------------------------------------------------
@@ -360,7 +382,19 @@ def compute_tax_projections_from_logs(
         taxable_income_15, filing_status
     )
     
-    # Tax savings from the $3k harvest (at marginal bracket rate e.g. 24%)
+    # Marginal tax savings from pre-tax and TLH
+    pretax_tax_savings = round(total_pretax_ytd * (fed_marg_rate / 100.0), 2)
+    pretax_breakdown = PretaxPayrollBreakdown(
+        traditional_401k_ytd=pretax_401k,
+        hsa_employee_ytd=pretax_hsa,
+        fsa_health_ytd=pretax_fsa,
+        transit_commuter_ytd=pretax_transit,
+        medical_dental_insurance_ytd=pretax_medical,
+        total_pretax_deductions_ytd=round(total_pretax_ytd, 2),
+        gross_pay_before_pretax=round(gross_pay, 2),
+        tax_savings_from_pretax=pretax_tax_savings,
+    )
+
     tlh_tax_savings = round(abs(loss_applied) * (fed_marg_rate / 100.0), 2)
     capital_gains_summary = CapitalGainsLossBreakdown(
         realized_capital_gains_ytd=0.0,
@@ -384,6 +418,8 @@ def compute_tax_projections_from_logs(
 
     form_1040 = Form1040Summary(
         tax_year=tax_year,
+        gross_earnings_ytd=round(gross_pay, 2),
+        pretax_payroll_deductions=pretax_breakdown,
         w2_taxable_wages_line_1a=w2_wages_1a,
         capital_loss_line_7a=loss_applied,
         total_income_line_9=total_income_9,
@@ -418,7 +454,6 @@ def compute_tax_projections_from_logs(
         state_sdi = tags.get(CanonicalTaxType.STATE_DISABILITY.value, 0.0)
         
         ca_std_deduction = 5363.0 if jur == "CA" else 0.0
-        # California also conforms to the $3,000 capital loss deduction against ordinary income
         state_taxable_income = max(0.0, (state_wages + loss_applied) - ca_std_deduction)
         
         projected_state_tax = 0.0
@@ -428,7 +463,6 @@ def compute_tax_projections_from_logs(
         if jur == "CA":
             projected_state_tax, state_breakdowns, state_eff_rate = calculate_detailed_ca_tax(state_taxable_income)
         
-        # State safe harbor (110% of prior year state tax)
         prior_state_tax = 0.0
         if prior_year_record and prior_year_record.state_records:
             prior_state_tax = float(prior_year_record.state_records.get(jur, {}).get("total_tax", 0.0))
