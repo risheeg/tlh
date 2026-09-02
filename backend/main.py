@@ -8,7 +8,7 @@ from fastapi import FastAPI
 
 from db.constraints import ensure_db_constraints, ensure_db_schemas
 from db.session import Base, engine, SessionLocal
-from routers import accounts, corporate_actions, ingest, prices, portfolio
+from routers import accounts, corporate_actions, ingest, prices, portfolio, taxes
 from services.prices import sync_stock_prices
 from services.portfolio.history_service import create_net_worth_snapshot
 from services.tlh_service import check_and_notify_tlh
@@ -128,6 +128,7 @@ app.include_router(accounts.router)
 app.include_router(corporate_actions.router)
 app.include_router(prices.router)
 app.include_router(portfolio.router)
+app.include_router(taxes.router)
 
 
 @app.get("/health", tags=["health"])
