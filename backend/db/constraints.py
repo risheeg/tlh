@@ -8,6 +8,8 @@ def ensure_db_schemas(engine) -> None:
 
     with engine.begin() as conn:
         conn.execute(text("CREATE SCHEMA IF NOT EXISTS vault_ingest;"))
+        conn.execute(text("CREATE SCHEMA IF NOT EXISTS expenses;"))
+        conn.execute(text("CREATE SCHEMA IF NOT EXISTS taxes;"))
 
 
 def ensure_db_constraints(engine) -> None:
@@ -17,6 +19,15 @@ def ensure_db_constraints(engine) -> None:
     This runs safely on every startup (idempotent).
     """
     with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                ALTER TABLE IF EXISTS accounts
+                ADD COLUMN IF NOT EXISTS closed_at TIMESTAMPTZ;
+                """
+            )
+        )
+
         conn.execute(
             text(
                 """
