@@ -99,21 +99,34 @@ class Form1040Summary:
 
 
 @dataclass
+class StateQuarterlySchedule:
+    q1_april_15: float
+    q2_june_15: float
+    q3_sept_15: float
+    q4_jan_15: float
+
+
+@dataclass
 class StateTaxSummary:
     state_code: str
     tax_year: int
-    taxable_wages_ytd: float
+    gross_state_wages_ytd: float
+    hsa_addback: float                   # CA non-conformity addback
+    state_taxable_wages_ytd: float
     state_capital_loss_line_7a: float
     standard_deduction: float
     taxable_income: float
     bracket_breakdowns: List[TaxBracketBreakdown]
+    gross_state_tax: float
+    ca_exemption_credit: float           # California personal exemption credit ($153 for Single)
     projected_state_tax: float
     effective_tax_rate: float
     withheld_ytd: float
     disability_tax_ytd: float
     state_safe_harbor_target: float
     amount_owed: float
-    suggested_quarterly_payment: float
+    remaining_safe_harbor_shortfall: float
+    quarterly_schedule: StateQuarterlySchedule
 
 
 @dataclass
@@ -242,7 +255,12 @@ def compute_tax_projections_from_logs(
 ) -> TaxProjectionResult:
     """
     Replays all append-only tax document events and aggregates canonical ledger entries into tax forms.
-    Bubbles pre-tax payroll deductions (401k, HSA, FSA, Transit), TLH -$3k, and Standard vs. Itemized deductions.
+    Accurately handles:
+    1. Pre-tax payroll exclusions (401k, HSA, FSA, Transit, Health).
+    2. California HSA non-conformity addback to state wages.
+    3. TLH -$3k capital loss deduction against ordinary income on both Fed Line 7a & CA Form 540.
+    4. California personal exemption credits ($153 for Single).
+    5. California 30% / 40% / 0% / 30% quarterly safe harbor schedule.
     """
     # 1. Fetch prior year baseline record
     prior_year_record = (
@@ -288,7 +306,6 @@ def compute_tax_projections_from_logs(
             if jur not in canonical_totals:
                 canonical_totals[jur] = {}
             
-            # Use YTD amount from the latest paystub
             val = float(entry.ytd_amount) if float(entry.ytd_amount) > 0 else float(entry.period_amount)
             canonical_totals[jur][tag_name] = canonical_totals[jur].get(tag_name, 0.0) + val
 
@@ -333,7 +350,7 @@ def compute_tax_projections_from_logs(
     loss_applied = -min(abs(available_loss), 3000.0) if available_loss != 0 else -3000.0
     
     total_income_9 = w2_wages_1a + loss_applied
-    adjustments_10 = 0.0 # Above-the-line outside payroll HSA / Trad IRA
+    adjustments_10 = 0.0
     agi_11b = total_income_9 - adjustments_10
     
     # -----------------------------------------------------------------------
@@ -382,7 +399,6 @@ def compute_tax_projections_from_logs(
         taxable_income_15, filing_status
     )
     
-    # Marginal tax savings from pre-tax and TLH
     pretax_tax_savings = round(total_pretax_ytd * (fed_marg_rate / 100.0), 2)
     pretax_breakdown = PretaxPayrollBreakdown(
         traditional_401k_ytd=pretax_401k,
@@ -443,49 +459,79 @@ def compute_tax_projections_from_logs(
         suggested_quarterly_payment=suggested_quarterly,
     )
 
-    # 5. State Tax Summaries with Progressive Brackets (e.g. CA)
+    # -----------------------------------------------------------------------
+    # 5. STATE TAX SUMMARIES (With CA Non-Conformity, Exemption Credits & CA Schedule)
+    # -----------------------------------------------------------------------
     state_summaries: Dict[str, StateTaxSummary] = {}
     for jur, tags in canonical_totals.items():
         if jur == "FED":
             continue
         
-        state_wages = tags.get(CanonicalTaxType.STATE_TAXABLE_WAGES.value, w2_wages_1a)
+        raw_state_wages = tags.get(CanonicalTaxType.STATE_TAXABLE_WAGES.value, 0.0)
         state_withheld = tags.get(CanonicalTaxType.STATE_WITHHOLDING.value, 0.0)
         state_sdi = tags.get(CanonicalTaxType.STATE_DISABILITY.value, 0.0)
         
-        ca_std_deduction = 5363.0 if jur == "CA" else 0.0
-        state_taxable_income = max(0.0, (state_wages + loss_applied) - ca_std_deduction)
+        # In California, HSA is not pre-tax. If state taxable wages are not explicitly in the stub, add back HSA
+        hsa_addback = pretax_hsa if jur == "CA" else 0.0
+        effective_state_wages = raw_state_wages if raw_state_wages > 0 else (w2_wages_1a + hsa_addback)
         
-        projected_state_tax = 0.0
+        ca_std_deduction = 5363.0 if jur == "CA" else 0.0
+        state_taxable_income = max(0.0, (effective_state_wages + loss_applied) - ca_std_deduction)
+        
+        gross_state_tax = 0.0
         state_breakdowns: List[TaxBracketBreakdown] = []
         state_eff_rate = 0.0
+        ca_exemption_credit = 153.0 if jur == "CA" else 0.0 # CA Personal Exemption Credit
         
         if jur == "CA":
-            projected_state_tax, state_breakdowns, state_eff_rate = calculate_detailed_ca_tax(state_taxable_income)
+            gross_state_tax, state_breakdowns, state_eff_rate = calculate_detailed_ca_tax(state_taxable_income)
+            
+        projected_net_state_tax = max(0.0, round(gross_state_tax - ca_exemption_credit, 2))
         
         prior_state_tax = 0.0
         if prior_year_record and prior_year_record.state_records:
             prior_state_tax = float(prior_year_record.state_records.get(jur, {}).get("total_tax", 0.0))
         
         state_safe_harbor = round(prior_state_tax * multiplier, 2)
-        state_owed = max(0.0, round(projected_state_tax - state_withheld, 2))
+        state_owed = max(0.0, round(projected_net_state_tax - state_withheld, 2))
         state_shortfall = max(0.0, round(state_safe_harbor - state_withheld, 2))
+        
+        # California Form 540-ES payment distribution: 30% Q1, 40% Q2, 0% Q3, 30% Q4
+        if jur == "CA":
+            q_schedule = StateQuarterlySchedule(
+                q1_april_15=round(state_shortfall * 0.30, 2),
+                q2_june_15=round(state_shortfall * 0.40, 2),
+                q3_sept_15=0.00,
+                q4_jan_15=round(state_shortfall * 0.30, 2),
+            )
+        else:
+            q_schedule = StateQuarterlySchedule(
+                q1_april_15=round(state_shortfall * 0.25, 2),
+                q2_june_15=round(state_shortfall * 0.25, 2),
+                q3_sept_15=round(state_shortfall * 0.25, 2),
+                q4_jan_15=round(state_shortfall * 0.25, 2),
+            )
         
         state_summaries[jur] = StateTaxSummary(
             state_code=jur,
             tax_year=tax_year,
-            taxable_wages_ytd=state_wages,
+            gross_state_wages_ytd=effective_state_wages,
+            hsa_addback=hsa_addback,
+            state_taxable_wages_ytd=effective_state_wages,
             state_capital_loss_line_7a=loss_applied,
             standard_deduction=ca_std_deduction,
             taxable_income=state_taxable_income,
             bracket_breakdowns=state_breakdowns,
-            projected_state_tax=projected_state_tax,
+            gross_state_tax=gross_state_tax,
+            ca_exemption_credit=ca_exemption_credit,
+            projected_state_tax=projected_net_state_tax,
             effective_tax_rate=state_eff_rate,
             withheld_ytd=state_withheld,
             disability_tax_ytd=state_sdi,
             state_safe_harbor_target=state_safe_harbor,
             amount_owed=state_owed,
-            suggested_quarterly_payment=round(state_shortfall / 4.0, 2),
+            remaining_safe_harbor_shortfall=state_shortfall,
+            quarterly_schedule=q_schedule,
         )
 
     return TaxProjectionResult(
