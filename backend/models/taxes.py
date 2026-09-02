@@ -19,7 +19,8 @@ class CanonicalTaxType(str, enum.Enum):
     # State & Local
     STATE_TAXABLE_WAGES = "STATE_TAXABLE_WAGES"
     STATE_WITHHOLDING = "STATE_WITHHOLDING"
-    STATE_DISABILITY = "STATE_DISABILITY"       # e.g., CA SDI / CAVDI, NY SDI
+    STATE_DISABILITY = "STATE_DISABILITY"       # e.g., Mandatory CA SDI, NY SDI, NY PFL
+    PRIVATE_DISABILITY = "PRIVATE_DISABILITY"   # e.g., Private Voluntary Disability (CA VDI) - non-deductible for SALT
     LOCAL_WITHHOLDING = "LOCAL_WITHHOLDING"     # e.g., NYC, Yonkers, Philadelphia
     LOCAL_TAXABLE_WAGES = "LOCAL_TAXABLE_WAGES"
     

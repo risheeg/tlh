@@ -65,7 +65,12 @@ PATTERNS = [
 
     # 5. State / City Disability & Paid Family Leave
     (
-        r"ca vdi|cavdi|sdi|disability|paid family leave|pfl",
+        r"ca vdi|cavdi|voluntary disability|private disability",
+        CanonicalTaxType.PRIVATE_DISABILITY,
+        "CA"
+    ),
+    (
+        r"sdi|disability|paid family leave|pfl",
         CanonicalTaxType.STATE_DISABILITY,
         None  # Detected dynamically from state code
     ),
