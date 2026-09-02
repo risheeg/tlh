@@ -66,6 +66,7 @@ class Form1040Summary:
     gross_earnings_ytd: float
     pretax_payroll_deductions: PretaxPayrollBreakdown
     w2_taxable_wages_line_1a: float
+    unemployment_compensation_line_8: float       # Schedule 1 / 1040 Line 8 (Form 1099-G)
     capital_loss_line_7a: float
     total_income_line_9: float
     adjustments_line_10: float
@@ -111,6 +112,8 @@ class StateTaxSummary:
     state_code: str
     tax_year: int
     state_source_wages_ytd: float
+    state_unemployment_benefit: float    # Tracked for Form 1099-G
+    is_unemployment_taxable_state: bool  # CA: Non-taxable (False); NY: Taxable (True)
     worldwide_taxable_income_base: float # Full worldwide income used to determine bracket tier (IT-203 / 540NR)
     apportionment_percentage: float      # State Source Wages / Total Worldwide Income
     base_tax_on_worldwide_income: float  # Tax computed as if full worldwide income were earned in this state
@@ -326,10 +329,11 @@ def compute_tax_projections_from_logs(
     harvested_losses_override: Optional[float] = None,
 ) -> TaxProjectionResult:
     """
-    Replays all append-only tax document events across all employers (Atlassian, Datadog/NYC, etc.).
-    Correctly models Part-Year Multi-State Apportionment (NY Form IT-203 & CA Form 540NR):
-    - Computes base tax rate using full worldwide AGI so higher progressive brackets are preserved.
-    - Multiplies base tax by the state source income apportionment fraction.
+    Replays all append-only tax document events across all employers and state agencies (EDD, NYSDOL, etc.).
+    Correctly models:
+    - Federal Form 1040 Line 8 (Unemployment Compensation from 1099-G is federally taxable).
+    - California Form 540 / 540NR: CA UI is 100% EXEMPT from California state income tax.
+    - Part-Year Multi-State Apportionment (NY Form IT-203 & CA Form 540NR).
     """
     # 1. Fetch prior year baseline record
     prior_year_record = (
@@ -364,7 +368,7 @@ def compute_tax_projections_from_logs(
     for ev in events:
         issuer_latest_events[ev.issuer_name] = ev
 
-    # Aggregate canonical tags across all employers (summing each employer's latest paystub)
+    # Aggregate canonical tags across all employers (summing each employer's latest paystub/document)
     canonical_totals: Dict[str, Dict[str, float]] = {}
 
     for issuer, latest_event in issuer_latest_events.items():
@@ -383,6 +387,11 @@ def compute_tax_projections_from_logs(
     w2_wages_1a = fed_data.get(CanonicalTaxType.FED_TAXABLE_WAGES.value, 0.0)
     fed_withholding_25a = fed_data.get(CanonicalTaxType.FED_WITHHOLDING.value, 0.0)
     
+    # Unemployment Compensation (1099-G / Schedule 1 Line 7 -> Form 1040 Line 8)
+    unemployment_total = 0.0
+    for jur, tags in canonical_totals.items():
+        unemployment_total += tags.get(CanonicalTaxType.UNEMPLOYMENT_COMPENSATION.value, 0.0)
+
     # Pre-tax deductions bubble
     pretax_401k = fed_data.get(CanonicalTaxType.PRETAX_401K.value, 0.0)
     pretax_hsa = fed_data.get(CanonicalTaxType.PRETAX_HSA.value, 0.0)
@@ -414,7 +423,8 @@ def compute_tax_projections_from_logs(
     )
     loss_applied = -min(abs(available_loss), 3000.0) if available_loss != 0 else -3000.0
     
-    total_income_9 = w2_wages_1a + loss_applied
+    # Total Income (Line 9) = Box 1 Wages + Unemployment + Capital Loss
+    total_income_9 = w2_wages_1a + unemployment_total + loss_applied
     adjustments_10 = 0.0
     agi_11b = total_income_9 - adjustments_10
     
@@ -498,6 +508,7 @@ def compute_tax_projections_from_logs(
         gross_earnings_ytd=round(gross_pay, 2),
         pretax_payroll_deductions=pretax_breakdown,
         w2_taxable_wages_line_1a=w2_wages_1a,
+        unemployment_compensation_line_8=unemployment_total,
         capital_loss_line_7a=loss_applied,
         total_income_line_9=total_income_9,
         adjustments_line_10=adjustments_10,
@@ -523,9 +534,6 @@ def compute_tax_projections_from_logs(
     # -----------------------------------------------------------------------
     # 5. MULTI-STATE & LOCAL APPORTIONMENT ENGINE (NY IT-203 & CA 540NR)
     # -----------------------------------------------------------------------
-    # In both NY and CA part-year returns:
-    # 1. Base Tax is calculated on FULL worldwide AGI (to determine true progressive bracket tier).
-    # 2. Base Tax is then multiplied by the State Apportionment Percentage (State Source Wages / Total Wages).
     state_summaries: Dict[str, StateTaxSummary] = {}
     total_fed_wages = max(1.0, w2_wages_1a)
 
@@ -537,15 +545,23 @@ def compute_tax_projections_from_logs(
         state_withheld = tags.get(CanonicalTaxType.STATE_WITHHOLDING.value, 0.0)
         local_withheld = tags.get(CanonicalTaxType.LOCAL_WITHHOLDING.value, 0.0)
         state_sdi = tags.get(CanonicalTaxType.STATE_DISABILITY.value, 0.0)
+        state_ui = tags.get(CanonicalTaxType.UNEMPLOYMENT_COMPENSATION.value, 0.0)
+        
         hsa_addback = pretax_hsa if jur == "CA" else 0.0
         state_source_wages = raw_state_wages if raw_state_wages > 0 else (135246.10 if jur == "CA" else 0.0)
+        
+        # In California, Unemployment Benefits (EDD) are 100% NON-TAXABLE.
+        # In New York, Unemployment Benefits are taxable.
+        is_taxable_in_state = (jur != "CA")
         
         # State Apportionment Ratio (State wages / Worldwide wages)
         apportionment_ratio = min(1.0, round(state_source_wages / total_fed_wages, 4)) if state_source_wages > 0 else 0.0
         
-        # Worldwide income base for state bracket tier lookup
-        hsa_addback = pretax_hsa if jur == "CA" else 0.0
-        worldwide_state_taxable_income = max(0.0, (w2_wages_1a + hsa_addback + loss_applied) - (5363.0 if jur == "CA" else 8000.0))
+        # Worldwide income base for state bracket tier lookup (CA excludes UI from worldwide state taxable base)
+        state_ui_inclusion = state_ui if is_taxable_in_state else 0.0
+        worldwide_state_taxable_income = max(
+            0.0, (w2_wages_1a + state_ui_inclusion + hsa_addback + loss_applied) - (5363.0 if jur == "CA" else 8000.0)
+        )
         
         base_tax_on_worldwide = 0.0
         local_tax = 0.0
@@ -598,6 +614,8 @@ def compute_tax_projections_from_logs(
             state_code=jur,
             tax_year=tax_year,
             state_source_wages_ytd=state_source_wages,
+            state_unemployment_benefit=state_ui,
+            is_unemployment_taxable_state=is_taxable_in_state,
             worldwide_taxable_income_base=worldwide_state_taxable_income,
             apportionment_percentage=round(apportionment_ratio * 100, 2),
             base_tax_on_worldwide_income=base_tax_on_worldwide,

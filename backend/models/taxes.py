@@ -34,6 +34,9 @@ class CanonicalTaxType(str, enum.Enum):
     FICA_SOCIAL_SECURITY = "FICA_SOCIAL_SECURITY"
     FICA_MEDICARE = "FICA_MEDICARE"
     
+    # Other Income & Unemployment (Form 1099-G)
+    UNEMPLOYMENT_COMPENSATION = "UNEMPLOYMENT_COMPENSATION"
+    
     # Other / Estimated Payments
     ESTIMATED_TAX_PAYMENT = "ESTIMATED_TAX_PAYMENT"
     PRIOR_YEAR_OVERPAYMENT = "PRIOR_YEAR_OVERPAYMENT"
@@ -42,6 +45,7 @@ class CanonicalTaxType(str, enum.Enum):
 class TaxDocumentType(str, enum.Enum):
     PAYSTUB = "PAYSTUB"
     FORM_W2 = "FORM_W2"
+    FORM_1099_G = "FORM_1099_G"
     FORM_1099_INT = "FORM_1099_INT"
     FORM_1099_DIV = "FORM_1099_DIV"
     FORM_1099_B = "FORM_1099_B"
