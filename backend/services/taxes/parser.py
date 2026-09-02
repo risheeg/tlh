@@ -3,7 +3,7 @@ from typing import Optional, Tuple
 from models.taxes import CanonicalTaxType
 
 
-# Pattern matchers for normalizing payroll line items (Workday, ADP, Gusto, etc.)
+# Pattern matchers for normalizing payroll line items (Workday, ADP, Gusto, Justworks, Paychex, etc.)
 PATTERNS = [
     # 1. Federal Withholding & Taxable Wages
     (
@@ -19,7 +19,7 @@ PATTERNS = [
     
     # 2. Supplemental Earnings
     (
-        r"bonus|fy annual bonus|severance|pay in lieu|rsu|flex wallet|kudos",
+        r"bonus|fy annual bonus|severance|pay in lieu|rsu|flex wallet|kudos|sign on|relocation",
         CanonicalTaxType.SUPPLEMENTAL_WAGES,
         "FED"
     ),
@@ -53,7 +53,7 @@ PATTERNS = [
         "FED"
     ),
     (
-        r"medical deduction|dental|vision",
+        r"medical deduction|dental|vision|benefit\s*-\s*medical",
         CanonicalTaxType.PRETAX_HEALTH_INSURANCE,
         "FED"
     ),
@@ -63,12 +63,26 @@ PATTERNS = [
         "FED"
     ),
 
-    # 5. State Taxes & Disability
+    # 5. State / City Disability & Paid Family Leave
     (
-        r"ca vdi|cavdi|sdi|disability",
+        r"ca vdi|cavdi|sdi|disability|paid family leave|pfl",
         CanonicalTaxType.STATE_DISABILITY,
         None  # Detected dynamically from state code
     ),
+
+    # 6. Local / City Tax (e.g. NYC City Tax)
+    (
+        r"city tax.*taxable wages|local.*taxable wages|nyc.*taxable wages",
+        CanonicalTaxType.LOCAL_TAXABLE_WAGES,
+        None
+    ),
+    (
+        r"city tax|local tax|nyc tax|nyc pit",
+        CanonicalTaxType.LOCAL_WITHHOLDING,
+        None
+    ),
+
+    # 7. State Taxable Wages & Withholding
     (
         r"state.*taxable wages|sit wages",
         CanonicalTaxType.STATE_TAXABLE_WAGES,
@@ -92,7 +106,6 @@ def sanitize_raw_tax_payload(payload: dict) -> dict:
     clean = {}
     for k, v in payload.items():
         if isinstance(v, str):
-            # Redact full SSN matches
             scrubbed = SSN_REGEX.sub("[REDACTED_SSN]", v)
             clean[k] = scrubbed
         elif isinstance(v, dict):
@@ -116,14 +129,14 @@ def parse_paystub_line_item(description: str) -> Tuple[Optional[CanonicalTaxType
     cleaned = description.strip()
     cleaned_lower = cleaned.lower()
     
-    # Check for state mentions (e.g. "State Tax - CA", "CA VDI - CAVDI", "NY SIT")
+    # Check for state mentions (e.g. "State Tax - CA", "State Tax - NY", "NY State Disability Insurance")
     state_match = STATE_CODE_REGEX.search(cleaned)
     detected_state = state_match.group(1).upper() if state_match else None
     
-    # Check for local tax (e.g. "NYC Tax")
+    # Check for local tax (e.g. "City Tax - NY", "NYC Tax")
     locality = None
-    if "nyc" in cleaned_lower or "new york city" in cleaned_lower:
-        detected_state = "NY"
+    if "city tax" in cleaned_lower or "nyc" in cleaned_lower or "new york city" in cleaned_lower:
+        detected_state = detected_state or "NY"
         locality = "NYC"
     
     for pattern, canonical_type, default_jurisdiction in PATTERNS:
@@ -131,8 +144,14 @@ def parse_paystub_line_item(description: str) -> Tuple[Optional[CanonicalTaxType
             jurisdiction = detected_state or default_jurisdiction or "FED"
             
             # If it's a state-specific tag and no state was detected, default to FED or leave as general
-            if canonical_type in (CanonicalTaxType.STATE_WITHHOLDING, CanonicalTaxType.STATE_TAXABLE_WAGES, CanonicalTaxType.STATE_DISABILITY):
-                jurisdiction = detected_state or "CA" # fallback or user default state
+            if canonical_type in (
+                CanonicalTaxType.STATE_WITHHOLDING,
+                CanonicalTaxType.STATE_TAXABLE_WAGES,
+                CanonicalTaxType.STATE_DISABILITY,
+                CanonicalTaxType.LOCAL_WITHHOLDING,
+                CanonicalTaxType.LOCAL_TAXABLE_WAGES,
+            ):
+                jurisdiction = detected_state or "FED"
                 
             return canonical_type, jurisdiction, locality
             
