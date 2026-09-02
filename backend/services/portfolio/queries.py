@@ -25,6 +25,7 @@ def _fetch_aggregated_holdings(db: Session, user_id) -> list:
             (PortfolioHoldingEnriched.asset_type == "Cash").label("is_cash")
         )
         .filter(PortfolioHoldingEnriched.user_id == user_id)
+        .filter(PortfolioHoldingEnriched.quantity != 0)
         .all()
     )
 

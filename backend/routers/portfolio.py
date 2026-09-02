@@ -101,16 +101,51 @@ def sync_portfolio_snapshot(user_id: uuid.UUID, group_by: str | None = None, db:
     
     return {"status": "success", "message": f"Snapshot for {today_str} synced to Google Sheets."}
 
-@router.get("/{user_id}/allocation")
+@router.get("/{user_id}/allocation", response_class=HTMLResponse)
 def get_user_category_allocation(user_id: uuid.UUID, db: Session = Depends(get_db)):
-    """Returns asset allocation breakdown by category."""
+    """Returns asset allocation breakdown by category as an HTML page."""
     summary = get_category_summary(db, user_id)
     if summary is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Allocation summary unavailable: ensure stock prices are fresh."
         )
-    return summary
+
+    # Sort by value descending, filter out zero-value categories
+    summary = [s for s in summary if s["value"] > 0]
+    summary.sort(key=lambda x: x["value"], reverse=True)
+    total = sum(s["value"] for s in summary)
+
+    rows_html = ""
+    for s in summary:
+        cat = s["category"]
+        val = s["value"]
+        pct = s["percentage"] * 100
+        tickers = ", ".join(s.get("tickers", [])) or "-"
+        rows_html += f"""
+        <tr>
+          <td>{cat}</td>
+          <td>{tickers}</td>
+          <td>${val:,.2f}</td>
+          <td>{pct:.1f}%</td>
+        </tr>"""
+
+    html = f"""<html>
+<body>
+Asset Allocation - {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}<br>
+Total: ${total:,.2f}<br><br>
+<table border='1'>
+  <tr>
+    <td>Category</td><td>Tickers</td><td>Value</td><td>%</td>
+  </tr>
+  {rows_html}
+  <tr>
+    <td>Total</td><td></td><td>${total:,.2f}</td><td>100.0%</td>
+  </tr>
+</table>
+</body>
+</html>"""
+    return html
 @router.get("/{user_id}/snapshot/view", response_class=HTMLResponse)
 def view_portfolio_snapshot(user_id: uuid.UUID, db: Session = Depends(get_db)):
     """Returns a pure plain-text HTML view of the 3 different snapshot structures."""

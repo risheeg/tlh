@@ -166,13 +166,24 @@ def generate_snapshot_rows(db: Session, user_id, group_by: str | None = None) ->
         result.ticker_balances.keys(), 
         key=lambda k: (category_order_map.get(k[0], 999), ticker_order_map.get(k[1], 999), k[0], k[1])
     )
-    
+
+    # Build a map of category -> ordered list of tickers (for parenthetical labels)
+    category_tickers: dict[str, list[str]] = {}
+    for category, ticker in sorted_ticker_keys:
+        category_tickers.setdefault(category, []).append(ticker)
+
+    def category_label(category: str) -> str:
+        tickers = category_tickers.get(category, [])
+        if tickers:
+            return f"{category} ({', '.join(tickers)})"
+        return category
+
     for category, ticker in sorted_ticker_keys:
         balances = result.ticker_balances[(category, ticker)]
         total_value = sum(balances)
         expense_ratio = result.ticker_expense_ratios[(category, ticker)]
         
-        row = [category, ticker] + [f"${balance:,.2f}" if balance != 0 else "" for balance in balances] + [f"${total_value:,.2f}", f"{expense_ratio * 100:.2f}%"]
+        row = [category_label(category), ticker] + [f"${balance:,.2f}" if balance != 0 else "" for balance in balances] + [f"${total_value:,.2f}", f"{expense_ratio * 100:.2f}%"]
         rows.append(row)
 
     # 3. Cash & Totals

@@ -28,6 +28,7 @@ class AccountResponse(BaseModel):
     type: AccountType
     institution: str | None
     created_at: datetime
+    closed_at: datetime | None
 
     model_config = {"from_attributes": True}
 
