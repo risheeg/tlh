@@ -24,13 +24,30 @@ class TaxBracketBreakdown:
 
 
 @dataclass
+class DeductionBreakdown:
+    deduction_type: str                  # "standard" vs "itemized"
+    standard_deduction_amount: float
+    itemized_total_amount: float
+    salt_state_tax_withheld: float
+    salt_property_tax: float
+    salt_cap_limit: float                # Capped at $20,000 (Single) or $40,000 (MFJ) post-TCJA / configurable
+    salt_allowed_deduction: float
+    mortgage_interest: float
+    charitable_contributions: float
+    other_itemized_deductions: float
+    effective_deduction_line_12e: float
+
+
+@dataclass
 class Form1040Summary:
     tax_year: int
     w2_taxable_wages_line_1a: float
     total_income_line_9: float
     adjustments_line_10: float
     agi_line_11b: float
-    standard_deduction_line_12e: float
+    
+    # Deductions
+    deductions: DeductionBreakdown
     taxable_income_line_15: float
     
     # Tax computation breakdown across brackets
@@ -187,10 +204,15 @@ def calculate_detailed_ca_tax(taxable_income: float) -> tuple[float, List[TaxBra
 def compute_tax_projections_from_logs(
     db: Session,
     user_id: UUID,
-    tax_year: int = 2026
+    tax_year: int = 2026,
+    salt_cap_override: Optional[float] = None,
+    mortgage_interest: float = 0.0,
+    charitable_contributions: float = 0.0,
+    property_taxes: float = 0.0,
 ) -> TaxProjectionResult:
     """
     Replays all append-only tax document events and aggregates canonical ledger entries into tax forms.
+    Dynamically compares Standard vs. Itemized Deductions (factoring in the SALT cap).
     """
     # 1. Fetch prior year baseline record
     prior_year_record = (
@@ -249,8 +271,54 @@ def compute_tax_projections_from_logs(
     adjustments_10 = 0.0
     agi_11b = total_income_9 - adjustments_10
     
-    std_deduction_12e = 15750.0 if filing_status == "single" else 31500.0
-    taxable_income_15 = max(0.0, agi_11b - std_deduction_12e)
+    # -----------------------------------------------------------------------
+    # DEDUCTION ENGINE: Standard vs. Itemized with Dynamic SALT Cap
+    # -----------------------------------------------------------------------
+    # Default SALT cap: $20,000 for Single / $40,000 for MFJ (or custom override / post-2025 sunset rule)
+    default_salt_cap = 20000.0 if filing_status == "single" else 40000.0
+    salt_cap_limit = salt_cap_override if salt_cap_override is not None else default_salt_cap
+    
+    # Sum all state and local income/disability taxes withheld across all states
+    total_state_tax_withheld = 0.0
+    for jur, tags in canonical_totals.items():
+        if jur != "FED":
+            total_state_tax_withheld += tags.get(CanonicalTaxType.STATE_WITHHOLDING.value, 0.0)
+            total_state_tax_withheld += tags.get(CanonicalTaxType.STATE_DISABILITY.value, 0.0)
+            total_state_tax_withheld += tags.get(CanonicalTaxType.LOCAL_WITHHOLDING.value, 0.0)
+            
+    # Calculate allowable SALT deduction
+    total_salt_paid = total_state_tax_withheld + property_taxes
+    salt_allowed = min(total_salt_paid, salt_cap_limit)
+    
+    # Total itemized deductions (Schedule A)
+    total_itemized = salt_allowed + mortgage_interest + charitable_contributions
+    
+    # Standard deduction (2026)
+    std_deduction_baseline = 15750.0 if filing_status == "single" else 31500.0
+    
+    # Choose higher deduction
+    if total_itemized > std_deduction_baseline:
+        deduction_type = "itemized"
+        effective_deduction = total_itemized
+    else:
+        deduction_type = "standard"
+        effective_deduction = std_deduction_baseline
+
+    deduction_details = DeductionBreakdown(
+        deduction_type=deduction_type,
+        standard_deduction_amount=std_deduction_baseline,
+        itemized_total_amount=round(total_itemized, 2),
+        salt_state_tax_withheld=round(total_state_tax_withheld, 2),
+        salt_property_tax=round(property_taxes, 2),
+        salt_cap_limit=round(salt_cap_limit, 2),
+        salt_allowed_deduction=round(salt_allowed, 2),
+        mortgage_interest=round(mortgage_interest, 2),
+        charitable_contributions=round(charitable_contributions, 2),
+        other_itemized_deductions=0.0,
+        effective_deduction_line_12e=round(effective_deduction, 2),
+    )
+
+    taxable_income_15 = max(0.0, agi_11b - effective_deduction)
     
     # Detailed Federal progressive brackets calculation
     projected_tax_24, fed_breakdowns, fed_eff_rate, fed_marg_rate = calculate_detailed_federal_tax(
@@ -276,7 +344,7 @@ def compute_tax_projections_from_logs(
         total_income_line_9=total_income_9,
         adjustments_line_10=adjustments_10,
         agi_line_11b=agi_11b,
-        standard_deduction_line_12e=std_deduction_12e,
+        deductions=deduction_details,
         taxable_income_line_15=taxable_income_15,
         bracket_breakdowns=fed_breakdowns,
         projected_tax_liability_line_24=projected_tax_24,

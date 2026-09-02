@@ -141,11 +141,23 @@ def ingest_paystub(payload: PaystubIngestRequest, db: Session = Depends(get_db))
 def get_tax_projection(
     user_id: uuid.UUID = Query(...),
     tax_year: int = Query(2026),
+    salt_cap_override: Optional[float] = Query(None, description="Custom SALT cap limit (default: $20,000 Single / $40,000 MFJ)"),
+    mortgage_interest: float = Query(0.0, description="Annual mortgage interest (Schedule A)"),
+    charitable_contributions: float = Query(0.0, description="Annual charitable gifts (Schedule A)"),
+    property_taxes: float = Query(0.0, description="Annual real estate / property taxes"),
     db: Session = Depends(get_db),
 ):
     user = db.get(User, user_id)
     if not user:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-    result = compute_tax_projections_from_logs(db=db, user_id=user_id, tax_year=tax_year)
+    result = compute_tax_projections_from_logs(
+        db=db,
+        user_id=user_id,
+        tax_year=tax_year,
+        salt_cap_override=salt_cap_override,
+        mortgage_interest=mortgage_interest,
+        charitable_contributions=charitable_contributions,
+        property_taxes=property_taxes,
+    )
     return result
