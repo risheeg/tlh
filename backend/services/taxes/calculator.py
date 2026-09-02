@@ -3,8 +3,10 @@ from datetime import date
 from typing import Any, Dict, List, Optional
 from uuid import UUID
 
+from sqlalchemy import select, and_
 from sqlalchemy.orm import Session
 
+from models.portfolio import PortfolioHoldingEnriched
 from models.taxes import (
     CanonicalTaxType,
     TaxDocumentEvent,
@@ -39,12 +41,24 @@ class DeductionBreakdown:
 
 
 @dataclass
+class CapitalGainsLossBreakdown:
+    realized_capital_gains_ytd: float
+    unrealized_harvestable_losses_portfolio: float
+    harvested_capital_loss_applied_line_7a: float # Capped at -$3,000 against ordinary income
+    tax_savings_from_harvest: float               # $3,000 * marginal_tax_rate
+
+
+@dataclass
 class Form1040Summary:
     tax_year: int
     w2_taxable_wages_line_1a: float
+    capital_loss_line_7a: float
     total_income_line_9: float
     adjustments_line_10: float
     agi_line_11b: float
+    
+    # Capital gains/loss & TLH
+    capital_gains_breakdown: CapitalGainsLossBreakdown
     
     # Deductions
     deductions: DeductionBreakdown
@@ -75,6 +89,7 @@ class StateTaxSummary:
     state_code: str
     tax_year: int
     taxable_wages_ytd: float
+    state_capital_loss_line_7a: float
     standard_deduction: float
     taxable_income: float
     bracket_breakdowns: List[TaxBracketBreakdown]
@@ -209,10 +224,11 @@ def compute_tax_projections_from_logs(
     mortgage_interest: float = 0.0,
     charitable_contributions: float = 0.0,
     property_taxes: float = 0.0,
+    harvested_losses_override: Optional[float] = None,
 ) -> TaxProjectionResult:
     """
     Replays all append-only tax document events and aggregates canonical ledger entries into tax forms.
-    Dynamically compares Standard vs. Itemized Deductions (factoring in the SALT cap).
+    Dynamically applies Capital Losses up to -$3,000 (Line 7a) and compares Standard vs. Itemized Deductions.
     """
     # 1. Fetch prior year baseline record
     prior_year_record = (
@@ -267,18 +283,43 @@ def compute_tax_projections_from_logs(
     w2_wages_1a = fed_data.get(CanonicalTaxType.FED_TAXABLE_WAGES.value, 0.0)
     fed_withholding_25a = fed_data.get(CanonicalTaxType.FED_WITHHOLDING.value, 0.0)
     
-    total_income_9 = w2_wages_1a
+    # -----------------------------------------------------------------------
+    # CAPITAL GAINS & TAX LOSS HARVESTING (Form 1040 Line 7a)
+    # -----------------------------------------------------------------------
+    # Calculate live harvestable unrealized losses from active portfolio lots
+    stmt = select(PortfolioHoldingEnriched).where(
+        and_(
+            PortfolioHoldingEnriched.user_id == user_id,
+            PortfolioHoldingEnriched.holding_type == 'lot',
+            PortfolioHoldingEnriched.category != 'Indvl Company'
+        )
+    )
+    portfolio_lots = db.execute(stmt).scalars().all()
+    live_unrealized_losses = 0.0
+    for lot in portfolio_lots:
+        if lot.current_price is not None and lot.original_purchase_price is not None:
+            diff = float(lot.original_purchase_price) - float(lot.current_price)
+            if diff > 0:
+                live_unrealized_losses += diff * float(lot.quantity)
+                
+    # If user passed override or has portfolio losses, apply up to -$3,000 against ordinary income
+    available_loss = harvested_losses_override if harvested_losses_override is not None else (
+        3000.0 if live_unrealized_losses >= 3000.0 else live_unrealized_losses
+    )
+    
+    # Default to -$3,000 standard capital loss allowance if planned
+    loss_applied = -min(abs(available_loss), 3000.0) if available_loss != 0 else -3000.0
+    
+    total_income_9 = w2_wages_1a + loss_applied
     adjustments_10 = 0.0
     agi_11b = total_income_9 - adjustments_10
     
     # -----------------------------------------------------------------------
     # DEDUCTION ENGINE: Standard vs. Itemized with Dynamic SALT Cap
     # -----------------------------------------------------------------------
-    # Default SALT cap: $20,000 for Single / $40,000 for MFJ (or custom override / post-2025 sunset rule)
     default_salt_cap = 20000.0 if filing_status == "single" else 40000.0
     salt_cap_limit = salt_cap_override if salt_cap_override is not None else default_salt_cap
     
-    # Sum all state and local income/disability taxes withheld across all states
     total_state_tax_withheld = 0.0
     for jur, tags in canonical_totals.items():
         if jur != "FED":
@@ -286,17 +327,11 @@ def compute_tax_projections_from_logs(
             total_state_tax_withheld += tags.get(CanonicalTaxType.STATE_DISABILITY.value, 0.0)
             total_state_tax_withheld += tags.get(CanonicalTaxType.LOCAL_WITHHOLDING.value, 0.0)
             
-    # Calculate allowable SALT deduction
     total_salt_paid = total_state_tax_withheld + property_taxes
     salt_allowed = min(total_salt_paid, salt_cap_limit)
-    
-    # Total itemized deductions (Schedule A)
     total_itemized = salt_allowed + mortgage_interest + charitable_contributions
-    
-    # Standard deduction (2026)
     std_deduction_baseline = 15750.0 if filing_status == "single" else 31500.0
     
-    # Choose higher deduction
     if total_itemized > std_deduction_baseline:
         deduction_type = "itemized"
         effective_deduction = total_itemized
@@ -325,6 +360,15 @@ def compute_tax_projections_from_logs(
         taxable_income_15, filing_status
     )
     
+    # Tax savings from the $3k harvest (at marginal bracket rate e.g. 24%)
+    tlh_tax_savings = round(abs(loss_applied) * (fed_marg_rate / 100.0), 2)
+    capital_gains_summary = CapitalGainsLossBreakdown(
+        realized_capital_gains_ytd=0.0,
+        unrealized_harvestable_losses_portfolio=round(live_unrealized_losses, 2),
+        harvested_capital_loss_applied_line_7a=loss_applied,
+        tax_savings_from_harvest=tlh_tax_savings,
+    )
+    
     # Safe Harbor Calculation (110% for AGI > 150k)
     multiplier = 1.10 if prior_year_agi > 150000 else 1.00
     safe_harbor_target = round(prior_year_tax * multiplier, 2)
@@ -341,9 +385,11 @@ def compute_tax_projections_from_logs(
     form_1040 = Form1040Summary(
         tax_year=tax_year,
         w2_taxable_wages_line_1a=w2_wages_1a,
+        capital_loss_line_7a=loss_applied,
         total_income_line_9=total_income_9,
         adjustments_line_10=adjustments_10,
         agi_line_11b=agi_11b,
+        capital_gains_breakdown=capital_gains_summary,
         deductions=deduction_details,
         taxable_income_line_15=taxable_income_15,
         bracket_breakdowns=fed_breakdowns,
@@ -372,7 +418,8 @@ def compute_tax_projections_from_logs(
         state_sdi = tags.get(CanonicalTaxType.STATE_DISABILITY.value, 0.0)
         
         ca_std_deduction = 5363.0 if jur == "CA" else 0.0
-        state_taxable_income = max(0.0, state_wages - ca_std_deduction)
+        # California also conforms to the $3,000 capital loss deduction against ordinary income
+        state_taxable_income = max(0.0, (state_wages + loss_applied) - ca_std_deduction)
         
         projected_state_tax = 0.0
         state_breakdowns: List[TaxBracketBreakdown] = []
@@ -394,6 +441,7 @@ def compute_tax_projections_from_logs(
             state_code=jur,
             tax_year=tax_year,
             taxable_wages_ytd=state_wages,
+            state_capital_loss_line_7a=loss_applied,
             standard_deduction=ca_std_deduction,
             taxable_income=state_taxable_income,
             bracket_breakdowns=state_breakdowns,

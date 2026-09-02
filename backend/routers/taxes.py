@@ -145,6 +145,7 @@ def get_tax_projection(
     mortgage_interest: float = Query(0.0, description="Annual mortgage interest (Schedule A)"),
     charitable_contributions: float = Query(0.0, description="Annual charitable gifts (Schedule A)"),
     property_taxes: float = Query(0.0, description="Annual real estate / property taxes"),
+    harvested_losses_override: Optional[float] = Query(None, description="Harvested capital loss amount (capped at -$3,000 against ordinary income)"),
     db: Session = Depends(get_db),
 ):
     user = db.get(User, user_id)
@@ -159,5 +160,6 @@ def get_tax_projection(
         mortgage_interest=mortgage_interest,
         charitable_contributions=charitable_contributions,
         property_taxes=property_taxes,
+        harvested_losses_override=harvested_losses_override,
     )
     return result
