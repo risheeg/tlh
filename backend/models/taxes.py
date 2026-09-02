@@ -111,9 +111,8 @@ class TaxLedgerEntry(Base):
     jurisdiction: Mapped[str] = mapped_column(String(10), default="FED", index=True, nullable=False)
     locality: Mapped[str | None] = mapped_column(String(50), nullable=True) # e.g. "NYC"
     
-    # Amounts: period vs YTD (if from paystub)
-    period_amount: Mapped[float] = mapped_column(Numeric(18, 2), default=0.0, nullable=False)
-    ytd_amount: Mapped[float] = mapped_column(Numeric(18, 2), default=0.0, nullable=False)
+    # Normalized cumulative YTD amount for this canonical tag as of this document
+    amount: Mapped[float] = mapped_column(Numeric(18, 2), default=0.0, nullable=False)
     
     raw_description: Mapped[str | None] = mapped_column(String, nullable=True) # Original line label from paystub
     

@@ -306,7 +306,7 @@ def compute_tax_projections_from_logs(
             if jur not in canonical_totals:
                 canonical_totals[jur] = {}
             
-            val = float(entry.ytd_amount) if float(entry.ytd_amount) > 0 else float(entry.period_amount)
+            val = float(entry.amount)
             canonical_totals[jur][tag_name] = canonical_totals[jur].get(tag_name, 0.0) + val
 
     # 4. Form 1040 Aggregations

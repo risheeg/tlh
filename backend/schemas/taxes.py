@@ -7,8 +7,7 @@ from pydantic import BaseModel, Field
 
 class PaystubLineItemInput(BaseModel):
     description: str
-    period_amount: float = 0.0
-    ytd_amount: float = 0.0
+    amount: float = 0.0                # YTD cumulative amount from paystub (or document amount)
     jurisdiction: Optional[str] = None # Optional override ("FED", "CA", "NY")
     locality: Optional[str] = None
 
@@ -52,8 +51,7 @@ class TaxLedgerEntryResponse(BaseModel):
     canonical_tag: str
     jurisdiction: str
     locality: Optional[str]
-    period_amount: float
-    ytd_amount: float
+    amount: float
     raw_description: Optional[str]
 
 

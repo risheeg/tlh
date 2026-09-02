@@ -122,8 +122,7 @@ def ingest_paystub(payload: PaystubIngestRequest, db: Session = Depends(get_db))
             canonical_tag=tag,
             jurisdiction=jurisdiction,
             locality=locality,
-            period_amount=item.period_amount,
-            ytd_amount=item.ytd_amount,
+            amount=item.amount,
             raw_description=item.description,
         )
         db.add(entry)
