@@ -13,8 +13,12 @@
       "accounts": ["Kraken"]
     },
     {
-      "header": "ROTH IRA RObinhood",
+      "header": "ROTH IRA Robinhood",
       "accounts": ["ROTH IRA @ Robinhood"]
+    },
+    {
+      "header": "ROTH IRA Fidelity",
+      "accounts": ["ROTH IRA @ Fidelity"]
     },
     {
       "header": "SoFi IRA/ Etrade IRA",
@@ -34,16 +38,15 @@
     }
   ],
   "category_order": [
-    "US Overall",
-    "US large",
+    "US Total Market",
     "US Large",
-    "US Growth Large",
-    "Us Value Large",
-    "US Exteneded",
-    "US Extended Market",
-    "International",
+    "US Large Growth",
+    "US Large Value",
+    "US Extended",
+    "International Broad",
     "International Developed",
-    "Indvl Company",
+    "Emerging Markets",
+    "Individual Stocks",
     "Cash/Cash Equivalents"
   ],
   "ticker_order": [
@@ -51,6 +54,7 @@
     "FZROX",
     "BKLC",
     "SPLG",
+    "VOO",
     "BBUS",
     "FNILX",
     "VUG",

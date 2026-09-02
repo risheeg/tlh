@@ -12,6 +12,7 @@ def get_portfolio_snapshot(db: Session, user_id) -> PortfolioSnapshot | None:
     results = (
         db.query(PortfolioHoldingEnriched)
         .filter(PortfolioHoldingEnriched.user_id == user_id)
+        .filter(PortfolioHoldingEnriched.quantity != 0)
         .all()
     )
     
@@ -24,6 +25,7 @@ def get_portfolio_snapshot(db: Session, user_id) -> PortfolioSnapshot | None:
             func.max(PortfolioHoldingEnriched.price_last_updated),
         )
         .filter(PortfolioHoldingEnriched.user_id == user_id)
+        .filter(PortfolioHoldingEnriched.quantity != 0)
         .one()
     )
     
@@ -50,6 +52,7 @@ def get_category_summary(db: Session, user_id) -> list[dict] | None:
     results = (
         db.query(
             PortfolioHoldingEnriched.category,
+            PortfolioHoldingEnriched.ticker,
             PortfolioHoldingEnriched.market_value
         )
         .filter(PortfolioHoldingEnriched.user_id == user_id)
@@ -61,15 +64,20 @@ def get_category_summary(db: Session, user_id) -> list[dict] | None:
         return None
         
     summary_data = defaultdict(Decimal)
+    tickers_by_category = defaultdict(set)
     for res in results:
-        summary_data[res.category or "Unknown"] += Decimal(str(res.market_value or 0))
+        cat = res.category or "Unknown"
+        summary_data[cat] += Decimal(str(res.market_value or 0))
+        if res.ticker:
+            tickers_by_category[cat].add(res.ticker)
         
     total = sum(summary_data.values())
     return [
         {
             "category": cat,
             "value": float(val),
-            "percentage": float(val / total) if total > 0 else 0
+            "percentage": float(val / total) if total > 0 else 0,
+            "tickers": sorted(tickers_by_category[cat])
         }
         for cat, val in summary_data.items()
     ]
