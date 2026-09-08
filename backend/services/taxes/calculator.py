@@ -403,16 +403,27 @@ def compute_tax_projections_from_logs(
     gross_pay = w2_wages_1a + total_pretax_ytd
     
     # Capital gains & TLH
+    from services.user_settings_service import (
+        DEFAULT_TLH_EXCLUSIONS,
+        get_or_create_user_settings,
+    )
+
+    user_settings = get_or_create_user_settings(db, user_id)
+    excluded_categories = set(
+        user_settings.tlh_excluded_categories or DEFAULT_TLH_EXCLUSIONS
+    )
+
     stmt = select(PortfolioHoldingEnriched).where(
         and_(
             PortfolioHoldingEnriched.user_id == user_id,
             PortfolioHoldingEnriched.holding_type == 'lot',
-            PortfolioHoldingEnriched.category != 'Indvl Company'
         )
     )
     portfolio_lots = db.execute(stmt).scalars().all()
     live_unrealized_losses = 0.0
     for lot in portfolio_lots:
+        if lot.category in excluded_categories:
+            continue
         if lot.current_price is not None and lot.original_purchase_price is not None:
             diff = float(lot.original_purchase_price) - float(lot.current_price)
             if diff > 0:
