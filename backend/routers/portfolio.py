@@ -14,7 +14,8 @@ from services.portfolio.history_service import (
     get_net_worth_history,
     update_net_worth_snapshot_comments,
 )
-from services.sheets import sheets_service
+from services.sheets import sheets_service_for_user
+from services.user_settings_service import get_or_create_user_settings
 
 router = APIRouter(prefix="/portfolio", tags=["portfolio"])
 
@@ -84,21 +85,44 @@ def update_user_net_worth_snapshot_comments(
 
 @router.post("/{user_id}/snapshot/sync")
 def sync_portfolio_snapshot(user_id: uuid.UUID, group_by: str | None = None, db: Session = Depends(get_db)):
-    """Appends daily snapshot to Google Sheets if it hasn't been synced today."""
+    """Appends daily snapshot to the user's Google Sheet if it hasn't been synced today."""
     today_str = datetime.now().strftime("%-m/%-d/%Y")
-    
-    if sheets_service.get_last_snapshot_date() == today_str:
+
+    user_settings = get_or_create_user_settings(db, user_id)
+    if not user_settings.portfolio_snapshot_sheet_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "Portfolio snapshot sheet is not configured. "
+                "Set portfolio_snapshot_sheet_id or portfolio_snapshot_sheet_url via /settings."
+            ),
+        )
+    if not user_settings.google_sheets_credentials:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                "Google Sheets credentials are not configured. "
+                "Upload a service-account JSON via /settings."
+            ),
+        )
+
+    user_sheets = sheets_service_for_user(
+        user_settings.google_sheets_credentials,
+        user_settings.portfolio_snapshot_sheet_id,
+    )
+
+    if user_sheets.get_last_snapshot_date() == today_str:
         return {"status": "skipped", "message": f"Snapshot for {today_str} already exists."}
-    
+
     rows = generate_snapshot_rows(db, user_id, group_by=group_by)
     if rows is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Could not generate spreadsheet rows. Ensure stock prices are fresh."
         )
-    
-    sheets_service.append_snapshot(rows)
-    
+
+    user_sheets.append_snapshot(rows)
+
     return {"status": "success", "message": f"Snapshot for {today_str} synced to Google Sheets."}
 
 @router.get("/{user_id}/allocation", response_class=HTMLResponse)

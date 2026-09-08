@@ -25,7 +25,34 @@ This application provides users with a real-time view of their financial health 
 - **Task Scheduling**: [APScheduler](https://apscheduler.readthedocs.io/)
 - **Data Source**: Google Sheets API
 
-## 🏃 Getting Started
+## Per-user settings
+
+Layout, Google Sheets snapshot destination, and TLH policy live in `user_settings`
+(not in source). Configure via API:
+
+- `GET /settings/{user_id}`
+- `PUT /settings/{user_id}` — full replace
+- `PATCH /settings/{user_id}` — partial update
+
+Important fields:
+
+- `default_group_by`: `custom` | `type` | `name`
+- `spreadsheet_columns`: `[{ "header": "...", "account_ids": ["..."] }]`
+- `portfolio_snapshot_sheet_id` or `portfolio_snapshot_sheet_url`
+- `google_sheets_credentials`: service-account JSON (private key never returned on GET)
+- `tlh_notify_threshold`, `tlh_excluded_categories`
+
+Seed spreadsheet columns / Sheets credentials (optional):
+
+```bash
+uv run python scratch/seed_user_settings.py --columns-json path/to/columns.json
+uv run python scratch/seed_user_settings.py --copy-sheets-only
+```
+
+Process env still holds the **shared price** sheet (`GOOGLE_SHEET_ID` + credentials file).
+Portfolio snapshot sync uses each user's own sheet + credentials.
+
+## Getting Started
 
 ### Prerequisites
 
@@ -43,9 +70,11 @@ This application provides users with a real-time view of their financial health 
 2. **Set up environment variables**:
    Create a `.env` file in this directory with the following configuration:
    ```env
-   # Google Sheets Configuration
+   # Google Sheets Configuration (shared PRICE feed)
    GOOGLE_SHEET_ID=your_google_sheet_id
    GOOGLE_APPLICATION_CREDENTIALS=/absolute/path/to/tlh/backend/google_credentials.json
+   # Optional legacy default; prefer /settings for snapshot sheet
+   # PORTFOLIO_SNAPSHOT_SHEET_ID=...
 
    # Neon Database URL
    NEON_DB_HOST=postgresql://user:password@host/neondb?sslmode=require
@@ -88,6 +117,12 @@ Base URL for local development: `http://localhost:8000`
 
 - `GET /health` - Check that the API is running.
 
+### Settings
+
+- `GET /settings/{user_id}` - Return per-user spreadsheet, Sheets, and TLH settings (credentials redacted).
+- `PUT /settings/{user_id}` - Replace settings (columns by account id, sheet URL/id, service-account JSON, TLH policy).
+- `PATCH /settings/{user_id}` - Partially update settings.
+
 ### Accounts
 
 - `POST /accounts` - Create an account for a user. If the same `(user_id, name)` already exists, the existing account is returned.
@@ -104,7 +139,7 @@ Base URL for local development: `http://localhost:8000`
 - `GET /portfolio/{user_id}/net-worth` - Return the user's current total net worth and last update timestamp.
 - `GET /portfolio/{user_id}/net-worth/history` - Return persisted net worth snapshots. Optional query params: `start_date`, `end_date`.
 - `PATCH /portfolio/{user_id}/net-worth/history/{snapshot_date}/comments` - Update comments for a net worth snapshot.
-- `POST /portfolio/{user_id}/snapshot/sync` - Append today's portfolio snapshot to Google Sheets if it has not already been synced. Optional query param: `group_by`.
+- `POST /portfolio/{user_id}/snapshot/sync` - Append today's portfolio snapshot to the **user's** Google Sheet if it has not already been synced. Requires sheet + credentials in `/settings`. Optional query param: `group_by`.
 - `GET /portfolio/{user_id}/allocation` - Return asset allocation by category.
 - `GET /portfolio/{user_id}/snapshot/view` - Return an HTML snapshot report with multiple grouping views.
 
