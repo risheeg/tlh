@@ -206,15 +206,17 @@ The API also exposes snapshot history at `GET /portfolio/{user_id}/net-worth/his
 ```text
 backend/
 ├── AGENTS.md           # Backend project rules and guidelines
-├── core/               # Configuration and core logic
-├── db/                 # Database connection and session management
-├── models/             # SQLAlchemy database models
-├── routers/            # FastAPI route handlers (API endpoints)
-├── schemas/            # Pydantic models for request/response validation
+├── core/               # Configuration
+├── db/                 # Session, constraints, views
+├── models/             # SQLAlchemy ORM only
+├── schemas/            # Pydantic request/response DTOs
+├── domains/            # Business logic (portfolio, tlh, taxes, expenses)
+├── shared/             # Cross-cutting helpers (email, settings, sheets)
+├── routers/            # Thin HTTP adapters
 ├── scripts/            # CLI tools and utility scripts
-├── services/           # Business logic and external integrations
+├── tests/
 ├── main.py             # Application entry point
-└── README.md           # You are here!
+└── README.md
 ```
 
 ## 📄 License

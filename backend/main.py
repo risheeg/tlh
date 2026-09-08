@@ -9,11 +9,11 @@ from fastapi import FastAPI
 from db.constraints import ensure_db_constraints, ensure_db_schemas
 from db.session import Base, engine, SessionLocal
 from routers import accounts, corporate_actions, ingest, prices, portfolio, taxes, settings as settings_router
-from services.prices import sync_stock_prices
-from services.portfolio.history_service import create_net_worth_snapshot
-from services.tlh_service import check_and_notify_tlh
-from services.weekly_digest_service import send_monthly_digest
-from models.models import User
+from domains.portfolio.prices import sync_stock_prices
+from domains.portfolio.history import create_net_worth_snapshot
+from domains.tlh import check_and_notify_tlh
+from shared.weekly_digest import send_monthly_digest
+from models.core import User
 from apscheduler.schedulers.background import BackgroundScheduler
 
 logger = logging.getLogger("uvicorn.error")

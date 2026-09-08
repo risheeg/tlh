@@ -16,8 +16,8 @@ from schemas.settings import (
     UserSettingsUpdate,
     normalize_sheet_id,
 )
-from services.portfolio.spreadsheet import _get_spreadsheet_config
-from services.user_settings_service import (
+from domains.portfolio.spreadsheet import _get_spreadsheet_config
+from shared.user_settings import (
     get_or_create_user_settings,
     patch_user_settings,
     put_user_settings,
@@ -154,7 +154,14 @@ class UserSettingsServiceTest(unittest.TestCase):
             str(a.id): a
             for a in self.db.query(Account).filter(Account.user_id == self.user_id)
         }
-        config = _get_spreadsheet_config(self.db, self.user_id, accounts, None)
+        with patch(
+            "domains.portfolio.spreadsheet._get_account_market_values",
+            return_value={
+                str(self.acc_a): Decimal("100"),
+                str(self.acc_b): Decimal("50"),
+            },
+        ):
+            config = _get_spreadsheet_config(self.db, self.user_id, accounts, None)
         self.assertEqual(len(config.mapping), 2)
         self.assertEqual(config.mapping[0]["header"], "Col A")
         self.assertIn(str(self.acc_a), config.mapping[0]["account_ids"])

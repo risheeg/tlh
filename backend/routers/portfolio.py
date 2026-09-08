@@ -4,18 +4,18 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import HTMLResponse
 from sqlalchemy.orm import Session
 from db.session import get_db
-from services.portfolio import get_portfolio_snapshot, generate_snapshot_rows, get_category_summary
+from domains.portfolio import get_portfolio_snapshot, generate_snapshot_rows, get_category_summary
 from schemas.portfolio import (
     NetWorthSnapshotCommentUpdate,
     NetWorthSnapshotResponse,
     PortfolioSnapshot,
 )
-from services.portfolio.history_service import (
+from domains.portfolio.history import (
     get_net_worth_history,
     update_net_worth_snapshot_comments,
 )
-from services.sheets import sheets_service_for_user
-from services.user_settings_service import get_or_create_user_settings
+from shared.sheets import sheets_service_for_user
+from shared.user_settings import get_or_create_user_settings
 
 router = APIRouter(prefix="/portfolio", tags=["portfolio"])
 

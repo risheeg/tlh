@@ -3,7 +3,7 @@ from decimal import Decimal
 from collections import defaultdict
 from sqlalchemy.orm import Session
 from models.models import NetWorthSnapshot, Account
-from services.portfolio.service import get_portfolio_snapshot
+from domains.portfolio.service import get_portfolio_snapshot
 
 def create_net_worth_snapshot(
     db: Session, user_id, comments: str | None = None

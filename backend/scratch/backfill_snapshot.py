@@ -2,7 +2,7 @@ import sys
 import uuid
 from datetime import date, timedelta
 from db.session import SessionLocal
-from services.portfolio.history_service import create_net_worth_snapshot
+from domains.portfolio.history import create_net_worth_snapshot
 from models.models import User, NetWorthSnapshot
 
 def backfill_for_date(target_date: date, user_id: uuid.UUID):
@@ -14,7 +14,7 @@ def backfill_for_date(target_date: date, user_id: uuid.UUID):
         # Since history_service.py uses date.today(), we'll copy the logic here or modify it.
         # Let's just do it manually here to be safe and flexible.
         
-        from services.portfolio.service import get_portfolio_snapshot
+        from domains.portfolio.service import get_portfolio_snapshot
         from decimal import Decimal
         from collections import defaultdict
         from models.models import Account

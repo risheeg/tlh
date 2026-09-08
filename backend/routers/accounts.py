@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from db.session import get_db
 from models.models import Account, User, Lot, Transaction, LotHistory, AccountType, TransactionType, LotStatus
-from schemas.schemas import AccountRegisterRequest, AccountResponse, TransferLotsRequest, TransferLotsResponse
+from schemas.accounts import AccountRegisterRequest, AccountResponse, TransferLotsRequest, TransferLotsResponse
 
 router = APIRouter(prefix="/accounts", tags=["accounts"])
 

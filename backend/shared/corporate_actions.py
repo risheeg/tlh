@@ -10,7 +10,7 @@ from models.models import (
     LotStatus,
     StockSplit,
 )
-from schemas.schemas import (
+from schemas.corporate_actions import (
     StockSplitApplyResponse,
     StockSplitCreate,
     StockSplitImpact,

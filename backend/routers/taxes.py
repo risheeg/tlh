@@ -17,8 +17,8 @@ from schemas.taxes import (
     PriorYearTaxRecordInput,
     TaxDocumentEventResponse,
 )
-from services.taxes.calculator import compute_tax_projections_from_logs
-from services.taxes.parser import parse_paystub_line_item, sanitize_raw_tax_payload
+from domains.taxes.projection import compute_tax_projections_from_logs
+from domains.taxes.parser import parse_paystub_line_item, sanitize_raw_tax_payload
 
 router = APIRouter(prefix="/taxes", tags=["taxes"])
 

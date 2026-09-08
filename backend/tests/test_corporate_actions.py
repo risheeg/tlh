@@ -17,8 +17,8 @@ from models.models import (
     StockSplit,
     User,
 )
-from schemas.schemas import StockSplitCreate
-from services.corporate_actions import apply_stock_split, preview_stock_split
+from schemas.corporate_actions import StockSplitCreate
+from shared.corporate_actions import apply_stock_split, preview_stock_split
 
 
 class StockSplitServiceTest(unittest.TestCase):

@@ -1,8 +1,8 @@
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
 from models.models import Lot, AggregatePosition, StockPrice, AssetType
-from services.price_history import backup_daily_stock_prices
-from services.sheets import sheets_service
+from domains.portfolio.price_history import backup_daily_stock_prices
+from shared.sheets import sheets_service
 
 def sync_stock_prices(db: Session):
     """

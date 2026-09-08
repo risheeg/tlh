@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 from db.session import get_db
-from services.prices import sync_stock_prices
+from domains.portfolio.prices import sync_stock_prices
 
 router = APIRouter(prefix="/prices", tags=["prices"])
 

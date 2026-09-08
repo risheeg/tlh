@@ -6,12 +6,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from db.session import get_db
-from schemas.schemas import (
+from schemas.corporate_actions import (
     StockSplitApplyResponse,
     StockSplitCreate,
     StockSplitPreviewResponse,
 )
-from services.corporate_actions import (
+from shared.corporate_actions import (
     StockSplitRatioConflictError,
     apply_stock_split,
     preview_stock_split,

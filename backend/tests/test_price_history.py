@@ -5,7 +5,7 @@ from datetime import date
 from decimal import Decimal
 from pathlib import Path
 
-from services.price_history import backup_daily_stock_prices
+from domains.portfolio.price_history import backup_daily_stock_prices
 
 
 class PriceHistoryBackupTest(unittest.TestCase):

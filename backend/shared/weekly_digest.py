@@ -20,7 +20,7 @@ from models.models import (
     StockPrice,
     User,
 )
-from services.email_service import send_email
+from shared.email import send_email
 
 
 def send_monthly_digest(db: Session, user_id: str) -> dict[str, Any]:
