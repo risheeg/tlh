@@ -8,7 +8,8 @@ from decimal import Decimal
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from models.models import Account, User, UserSettings
+from models.core import Account, User
+from models.user_settings import UserSettings
 from schemas.settings import (
     SpreadsheetColumnConfig,
     UserSettingsPut,

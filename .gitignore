@@ -48,7 +48,10 @@ backend.log
 backend/backend.log
 backend/var/
 
-# Local statement PDFs (scratch)
+# Local statement PDFs (scratch / samples)
+eStmt_2021-*.pdf
+docs/samples/eStmt_*.pdf
+docs/samples/*.pdf
 eStmt_2021-07-21.pdf
 eStmt_2021-08-21.pdf
 eStmt_2021-09-21.pdf

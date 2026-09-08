@@ -1,7 +1,7 @@
 from decimal import Decimal
 from sqlalchemy import func, case
 from sqlalchemy.orm import Session
-from models.models import PortfolioHoldingEnriched, StockPrice
+from models.portfolio import PortfolioHoldingEnriched, StockPrice
 
 def _get_account_market_values(db: Session, user_id) -> dict[str, Decimal]:
     """Returns a mapping of account_id -> total_market_value for a user."""

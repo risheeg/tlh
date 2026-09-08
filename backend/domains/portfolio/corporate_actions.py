@@ -3,13 +3,8 @@ from decimal import Decimal
 
 from sqlalchemy.orm import Session
 
-from models.models import (
-    AggregatePosition,
-    AssetType,
-    Lot,
-    LotStatus,
-    StockSplit,
-)
+from models.enums import AssetType, LotStatus
+from models.portfolio import AggregatePosition, Lot, StockSplit
 from schemas.corporate_actions import (
     StockSplitApplyResponse,
     StockSplitCreate,

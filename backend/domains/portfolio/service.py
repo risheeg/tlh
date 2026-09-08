@@ -2,7 +2,7 @@ from decimal import Decimal
 from collections import defaultdict
 from sqlalchemy import func
 from sqlalchemy.orm import Session
-from models.models import PortfolioHoldingEnriched
+from models.portfolio import PortfolioHoldingEnriched
 from schemas.portfolio import PortfolioSnapshot
 
 def get_portfolio_snapshot(db: Session, user_id) -> PortfolioSnapshot | None:

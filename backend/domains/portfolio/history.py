@@ -2,7 +2,8 @@ from datetime import date, datetime, timezone
 from decimal import Decimal
 from collections import defaultdict
 from sqlalchemy.orm import Session
-from models.models import NetWorthSnapshot, Account
+from models.core import Account
+from models.portfolio import NetWorthSnapshot
 from domains.portfolio.service import get_portfolio_snapshot
 
 def create_net_worth_snapshot(

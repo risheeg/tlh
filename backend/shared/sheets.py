@@ -45,7 +45,7 @@ class GoogleSheetsService:
         Column A: Ticker
         Column B: Price formula (=GOOGLEFINANCE(ticker, "price"))
         """
-        from models.models import StockPrice
+        from models.portfolio import StockPrice
 
         if self.price_worksheet is None:
             raise RuntimeError("Price worksheet is not configured for this Sheets client.")

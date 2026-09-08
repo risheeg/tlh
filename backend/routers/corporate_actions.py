@@ -11,7 +11,7 @@ from schemas.corporate_actions import (
     StockSplitCreate,
     StockSplitPreviewResponse,
 )
-from shared.corporate_actions import (
+from domains.portfolio.corporate_actions import (
     StockSplitRatioConflictError,
     apply_stock_split,
     preview_stock_split,

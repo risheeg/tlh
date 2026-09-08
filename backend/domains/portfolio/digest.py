@@ -1,7 +1,4 @@
-"""
-Monthly digest email: net worth, allocation breakdown, and every active lot
-with its current gain/loss status.
-"""
+"""Monthly portfolio digest email: net worth, allocation, and lot P/L."""
 from __future__ import annotations
 
 from collections import defaultdict
@@ -12,14 +9,9 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from models.models import (
-    Lot,
-    LotStatus,
-    NetWorthSnapshot,
-    PortfolioHoldingEnriched,
-    StockPrice,
-    User,
-)
+from models.core import User
+from models.enums import LotStatus
+from models.portfolio import Lot, NetWorthSnapshot, PortfolioHoldingEnriched, StockPrice
 from shared.email import send_email
 
 

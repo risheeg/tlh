@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 from datetime import datetime, timezone
-from models.models import Lot, AggregatePosition, StockPrice, AssetType
+from models.enums import AssetType
+from models.portfolio import AggregatePosition, Lot, StockPrice
 from domains.portfolio.price_history import backup_daily_stock_prices
 from shared.sheets import sheets_service
 

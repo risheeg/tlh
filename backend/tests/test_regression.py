@@ -8,7 +8,9 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
 from db.session import Base
-from models.models import Account, AccountType, User, UserSettings
+from models.core import Account, User
+from models.enums import AccountType
+from models.user_settings import UserSettings
 from schemas.settings import SpreadsheetColumnConfig, UserSettingsPut
 from domains.portfolio.spreadsheet import _get_spreadsheet_config
 from shared.user_settings import (
@@ -163,7 +165,7 @@ class AccountRegisterRegressionTest(unittest.TestCase):
 
     def test_register_account_idempotent(self):
         from routers.accounts import register_account
-        from schemas.schemas import AccountRegisterRequest
+        from schemas.accounts import AccountRegisterRequest
 
         payload = AccountRegisterRequest(
             user_id=self.user_id,

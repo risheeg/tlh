@@ -9,7 +9,9 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
 from db.session import Base
-from models.models import Account, AccountType, User, UserSettings
+from models.core import Account, User
+from models.enums import AccountType
+from models.user_settings import UserSettings
 from schemas.settings import (
     SpreadsheetColumnConfig,
     UserSettingsPut,

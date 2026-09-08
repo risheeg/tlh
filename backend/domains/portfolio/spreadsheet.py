@@ -1,19 +1,19 @@
 from datetime import datetime
 from decimal import Decimal
 from sqlalchemy.orm import Session
-from .schemas import SpreadsheetConfig, TickerBalancesResult
+from .layout import SpreadsheetConfig, TickerBalancesResult
 from .queries import _get_account_market_values, _fetch_aggregated_holdings
 
 
 def _load_user_settings_row(db: Session, user_id):
-    from models.models import UserSettings
+    from models.user_settings import UserSettings
 
     return db.get(UserSettings, user_id)
 
 
 def _get_spreadsheet_config(db: Session, user_id, accounts: dict, group_by: str) -> SpreadsheetConfig:
     """Determines the spreadsheet layout and categorizes all accounts."""
-    from models.models import AccountType
+    from models.enums import AccountType
 
     mapping = []
     category_order = []
@@ -176,7 +176,7 @@ def _get_ticker_balances(db: Session, user_id, config: SpreadsheetConfig, accoun
 
 def generate_snapshot_rows(db: Session, user_id, group_by: str | None = None) -> list[list] | None:
     """High-level orchestrator for generating spreadsheet rows."""
-    from models.models import Account
+    from models.core import Account
 
     accounts = {
         str(account.id): account
