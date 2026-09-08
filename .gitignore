@@ -67,3 +67,7 @@ vault-ingest/scripts/
 
 # backend/scripts: kept locally only (not in git)
 backend/scripts/
+
+# Scratch
+scratch/
+backend/scratch/

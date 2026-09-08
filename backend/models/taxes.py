@@ -19,7 +19,8 @@ class CanonicalTaxType(str, enum.Enum):
     # State & Local
     STATE_TAXABLE_WAGES = "STATE_TAXABLE_WAGES"
     STATE_WITHHOLDING = "STATE_WITHHOLDING"
-    STATE_DISABILITY = "STATE_DISABILITY"       # e.g., CA SDI / CAVDI, NY SDI
+    STATE_DISABILITY = "STATE_DISABILITY"       # e.g., Mandatory CA SDI, NY SDI, NY PFL
+    PRIVATE_DISABILITY = "PRIVATE_DISABILITY"   # e.g., Private Voluntary Disability (CA VDI) - non-deductible for SALT
     LOCAL_WITHHOLDING = "LOCAL_WITHHOLDING"     # e.g., NYC, Yonkers, Philadelphia
     LOCAL_TAXABLE_WAGES = "LOCAL_TAXABLE_WAGES"
     
@@ -34,6 +35,9 @@ class CanonicalTaxType(str, enum.Enum):
     FICA_SOCIAL_SECURITY = "FICA_SOCIAL_SECURITY"
     FICA_MEDICARE = "FICA_MEDICARE"
     
+    # Other Income & Unemployment (Form 1099-G)
+    UNEMPLOYMENT_COMPENSATION = "UNEMPLOYMENT_COMPENSATION"
+    
     # Other / Estimated Payments
     ESTIMATED_TAX_PAYMENT = "ESTIMATED_TAX_PAYMENT"
     PRIOR_YEAR_OVERPAYMENT = "PRIOR_YEAR_OVERPAYMENT"
@@ -42,6 +46,7 @@ class CanonicalTaxType(str, enum.Enum):
 class TaxDocumentType(str, enum.Enum):
     PAYSTUB = "PAYSTUB"
     FORM_W2 = "FORM_W2"
+    FORM_1099_G = "FORM_1099_G"
     FORM_1099_INT = "FORM_1099_INT"
     FORM_1099_DIV = "FORM_1099_DIV"
     FORM_1099_B = "FORM_1099_B"
