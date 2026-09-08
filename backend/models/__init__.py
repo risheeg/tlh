@@ -9,6 +9,7 @@ from .enums import (
     LotStatus, ExpenseStatus, ReimbursementStatus
 )
 from .core import User, Account
+from .user_settings import UserSettings
 from .portfolio import (
     Lot, AggregatePosition, CashHolding, StockPrice,
     StockSplit, Transaction, LotHistory,

@@ -31,6 +31,26 @@ def ensure_db_constraints(engine) -> None:
         conn.execute(
             text(
                 """
+                CREATE TABLE IF NOT EXISTS user_settings (
+                    user_id UUID PRIMARY KEY REFERENCES users(id),
+                    default_group_by TEXT NOT NULL DEFAULT 'type',
+                    spreadsheet_columns JSONB NOT NULL DEFAULT '[]'::jsonb,
+                    category_order JSONB NOT NULL DEFAULT '[]'::jsonb,
+                    ticker_order JSONB NOT NULL DEFAULT '[]'::jsonb,
+                    portfolio_snapshot_sheet_id TEXT,
+                    google_sheets_credentials JSONB,
+                    tlh_notify_threshold NUMERIC(18, 2) NOT NULL DEFAULT 1000,
+                    tlh_excluded_categories JSONB NOT NULL
+                        DEFAULT '["Indvl Company", "Individual Stocks"]'::jsonb,
+                    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+                );
+                """
+            )
+        )
+
+        conn.execute(
+            text(
+                """
                 ALTER TABLE IF EXISTS net_worth_snapshots
                 ADD COLUMN IF NOT EXISTS comments TEXT;
                 """
