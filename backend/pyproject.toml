@@ -21,8 +21,14 @@ dependencies = [
     "gspread-formatting>=1.2.1",
 ]
 
+[project.optional-dependencies]
+dev = [
+    "import-linter>=2.1",
+    "pytest>=8.0",
+]
+
 [project.scripts]
-tlh = "scripts.cli:main"
+tlh = "cli.main:main"
 
 [tool.uv]
 package = true
@@ -32,4 +38,65 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["core", "db", "models", "routers", "schemas", "services", "scripts"]
+packages = ["core", "db", "models", "routers", "schemas", "domains", "shared", "scripts", "cli", "scheduler"]
+
+[tool.importlinter]
+root_packages = [
+    "core",
+    "db",
+    "models",
+    "schemas",
+    "shared",
+    "domains",
+    "routers",
+    "scheduler",
+    "cli",
+]
+
+[[tool.importlinter.contracts]]
+name = "Models must not import domains, routers, schemas, or shared"
+type = "forbidden"
+source_modules = ["models"]
+forbidden_modules = ["domains", "routers", "schemas", "shared", "scheduler", "cli"]
+
+[[tool.importlinter.contracts]]
+name = "Schemas must stay pure DTOs"
+type = "forbidden"
+source_modules = ["schemas"]
+forbidden_modules = ["domains", "routers", "shared", "db", "scheduler", "cli"]
+
+[[tool.importlinter.contracts]]
+name = "Schemas must not import ORM model modules"
+type = "forbidden"
+source_modules = ["schemas"]
+forbidden_modules = [
+    "models.core",
+    "models.portfolio",
+    "models.taxes",
+    "models.expenses",
+    "models.documents",
+    "models.user_settings",
+]
+# models.enums is allowed — shared value objects used by both ORM and DTOs.
+
+[[tool.importlinter.contracts]]
+name = "Shared must not import domains or routers"
+type = "forbidden"
+source_modules = ["shared"]
+forbidden_modules = ["domains", "routers", "scheduler", "cli"]
+
+[[tool.importlinter.contracts]]
+name = "Portfolio must not import taxes, tlh, or expenses"
+type = "forbidden"
+source_modules = ["domains.portfolio"]
+forbidden_modules = [
+    "domains.taxes",
+    "domains.tlh",
+    "domains.expenses",
+]
+
+[[tool.importlinter.contracts]]
+name = "Routers may not be imported by domains"
+type = "forbidden"
+source_modules = ["domains"]
+forbidden_modules = ["routers", "scheduler", "cli"]

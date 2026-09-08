@@ -10,7 +10,7 @@ from schemas.settings import (
     UserSettingsResponse,
     UserSettingsUpdate,
 )
-from services.user_settings_service import (
+from shared.user_settings import (
     get_or_create_user_settings,
     patch_user_settings,
     put_user_settings,

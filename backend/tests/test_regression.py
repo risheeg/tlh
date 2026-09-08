@@ -8,10 +8,12 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
 from db.session import Base
-from models.models import Account, AccountType, User, UserSettings
+from models.core import Account, User
+from models.enums import AccountType
+from models.user_settings import UserSettings
 from schemas.settings import SpreadsheetColumnConfig, UserSettingsPut
-from services.portfolio.spreadsheet import _get_spreadsheet_config
-from services.user_settings_service import (
+from domains.portfolio.spreadsheet import _get_spreadsheet_config
+from shared.user_settings import (
     DEFAULT_TLH_EXCLUSIONS,
     DEFAULT_TLH_THRESHOLD,
     get_or_create_user_settings,
@@ -69,8 +71,19 @@ class SpreadsheetGroupingRegressionTest(unittest.TestCase):
         self.db.close()
         self.engine.dispose()
 
+    def _market_values(self):
+        return {
+            str(self.taxable_id): Decimal("100"),
+            str(self.retirement_id): Decimal("50"),
+            str(self.savings_id): Decimal("0"),
+        }
+
     def test_default_without_settings_uses_type_grouping(self):
-        config = _get_spreadsheet_config(self.db, self.user_id, self.accounts, None)
+        with patch(
+            "domains.portfolio.spreadsheet._get_account_market_values",
+            return_value=self._market_values(),
+        ):
+            config = _get_spreadsheet_config(self.db, self.user_id, self.accounts, None)
         headers = [c["header"] for c in config.mapping]
         self.assertEqual(headers, ["Brokerage / Taxable", "Retirement"])
         self.assertEqual(len(config.cash_accounts), 1)
@@ -79,12 +92,8 @@ class SpreadsheetGroupingRegressionTest(unittest.TestCase):
 
     def test_explicit_name_grouping(self):
         with patch(
-            "services.portfolio.spreadsheet._get_account_market_values",
-            return_value={
-                str(self.taxable_id): Decimal("100"),
-                str(self.retirement_id): Decimal("50"),
-                str(self.savings_id): Decimal("0"),
-            },
+            "domains.portfolio.spreadsheet._get_account_market_values",
+            return_value=self._market_values(),
         ):
             config = _get_spreadsheet_config(
                 self.db, self.user_id, self.accounts, "name"
@@ -98,7 +107,11 @@ class SpreadsheetGroupingRegressionTest(unittest.TestCase):
             self.user_id,
             UserSettingsPut(default_group_by="custom", spreadsheet_columns=[]),
         )
-        config = _get_spreadsheet_config(self.db, self.user_id, self.accounts, None)
+        with patch(
+            "domains.portfolio.spreadsheet._get_account_market_values",
+            return_value=self._market_values(),
+        ):
+            config = _get_spreadsheet_config(self.db, self.user_id, self.accounts, None)
         headers = [c["header"] for c in config.mapping]
         self.assertEqual(headers, ["Brokerage / Taxable", "Retirement"])
 
@@ -118,7 +131,11 @@ class SpreadsheetGroupingRegressionTest(unittest.TestCase):
                 ticker_order=["VTI", "VXUS"],
             ),
         )
-        config = _get_spreadsheet_config(self.db, self.user_id, self.accounts, None)
+        with patch(
+            "domains.portfolio.spreadsheet._get_account_market_values",
+            return_value=self._market_values(),
+        ):
+            config = _get_spreadsheet_config(self.db, self.user_id, self.accounts, None)
         self.assertEqual(len(config.mapping), 1)
         self.assertEqual(config.mapping[0]["header"], "All Investable")
         self.assertEqual(
@@ -148,7 +165,7 @@ class AccountRegisterRegressionTest(unittest.TestCase):
 
     def test_register_account_idempotent(self):
         from routers.accounts import register_account
-        from schemas.schemas import AccountRegisterRequest
+        from schemas.accounts import AccountRegisterRequest
 
         payload = AccountRegisterRequest(
             user_id=self.user_id,
@@ -192,7 +209,8 @@ class TlhSettingsWiringRegressionTest(unittest.TestCase):
         )
 
     def test_check_and_notify_uses_threshold_and_exclusions(self):
-        from services import tlh_service
+        from domains.tlh import notify as tlh_notify
+        from domains.tlh import scan as tlh_scan
 
         settings_row = put_user_settings(
             self.db,
@@ -221,12 +239,16 @@ class TlhSettingsWiringRegressionTest(unittest.TestCase):
         mock_result = MagicMock()
         mock_result.scalars.return_value.all.return_value = [included, excluded]
 
-        with patch.object(tlh_service, "send_email") as send_email, patch.object(
-            tlh_service,
+        with patch.object(tlh_notify, "send_email") as send_email, patch.object(
+            tlh_notify,
+            "get_or_create_user_settings",
+            return_value=settings_row,
+        ), patch.object(
+            tlh_scan,
             "get_or_create_user_settings",
             return_value=settings_row,
         ), patch.object(self.db, "execute", return_value=mock_result):
-            result = tlh_service.check_and_notify_tlh(self.db, str(self.user_id))
+            result = tlh_notify.check_and_notify_tlh(self.db, str(self.user_id))
 
         # Loss from VTI only: (100-80)*10 = 200 < 500 => no notify
         self.assertFalse(result["notified"])
@@ -237,12 +259,16 @@ class TlhSettingsWiringRegressionTest(unittest.TestCase):
         # Raise loss above threshold
         included.quantity = 30  # (100-80)*30 = 600
         mock_result.scalars.return_value.all.return_value = [included, excluded]
-        with patch.object(tlh_service, "send_email") as send_email, patch.object(
-            tlh_service,
+        with patch.object(tlh_notify, "send_email") as send_email, patch.object(
+            tlh_notify,
+            "get_or_create_user_settings",
+            return_value=settings_row,
+        ), patch.object(
+            tlh_scan,
             "get_or_create_user_settings",
             return_value=settings_row,
         ), patch.object(self.db, "execute", return_value=mock_result):
-            result = tlh_service.check_and_notify_tlh(self.db, str(self.user_id))
+            result = tlh_notify.check_and_notify_tlh(self.db, str(self.user_id))
         self.assertTrue(result["notified"])
         self.assertEqual(result["total_loss"], 600.0)
         send_email.assert_called_once()

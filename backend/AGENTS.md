@@ -9,6 +9,11 @@ Some key rules:
 - Use a logical file structure and write clean readable code.
 - Keep backend code under this folder.
 - Keep local secrets such as `.env` and `google_credentials.json` under this folder and out of git.
+- Business logic lives in `domains/`; ORM in `models/`; DTOs in `schemas/`; cross-cutting helpers in `shared/`. Routers stay thin.
+- Import from `models.<module>` / `schemas.<domain>` directly (no barrels).
+- Schema changes go through Alembic (`alembic revision` / `alembic upgrade head`).
+- Scheduled work belongs in `domains/*/jobs.py`; `scheduler.py` only wires cron.
+- Run `uv run lint-imports` (dev extra) before merging boundary-sensitive changes.
 - Promptly remove any test or ad hoc scripts that are created as intermediate outputs of your work.
 
 Additional notes:

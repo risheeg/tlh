@@ -7,18 +7,11 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
 from db.session import Base
-from models.models import (
-    Account,
-    AccountType,
-    AggregatePosition,
-    AssetType,
-    Lot,
-    LotStatus,
-    StockSplit,
-    User,
-)
-from schemas.schemas import StockSplitCreate
-from services.corporate_actions import apply_stock_split, preview_stock_split
+from models.core import Account, User
+from models.enums import AccountType, AssetType, LotStatus
+from models.portfolio import AggregatePosition, Lot, StockSplit
+from schemas.corporate_actions import StockSplitCreate
+from domains.portfolio.corporate_actions import apply_stock_split, preview_stock_split
 
 
 class StockSplitServiceTest(unittest.TestCase):
