@@ -22,9 +22,10 @@ class SMTPSettings(BaseModel):
 class Settings(BaseSettings):
     neon_db_host: str
 
-    # Google Sheets integration
+    # Google Sheets integration (shared price feed)
     google_sheet_id: str
-    portfolio_snapshot_sheet_id: str
+    # Deprecated for multi-user: prefer user_settings.portfolio_snapshot_sheet_id
+    portfolio_snapshot_sheet_id: str | None = None
     google_application_credentials: str = str(BACKEND_ROOT / "google_credentials.json")
 
     # Email SMTP Credentials (parsed from env)

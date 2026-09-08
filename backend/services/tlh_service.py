@@ -2,22 +2,30 @@ from sqlalchemy.orm import Session
 from sqlalchemy import select, and_
 from models.models import PortfolioHoldingEnriched, User
 from services.email_service import send_email
+from services.user_settings_service import (
+    DEFAULT_TLH_EXCLUSIONS,
+    DEFAULT_TLH_THRESHOLD,
+    get_or_create_user_settings,
+)
 
 def check_and_notify_tlh(db: Session, user_id: str) -> dict:
     """
-    Identifies lots with a loss and sends an email if the combined harvestable losses exceed 1000.
-    Excludes 'Individual Stock' category.
+    Identifies lots with a loss and sends an email if the combined harvestable
+    losses exceed the user's configured threshold. Excludes configured categories.
     """
     user = db.get(User, user_id)
     if not user:
         return {"error": f"User {user_id} not found"}
+
+    settings = get_or_create_user_settings(db, user.id)
+    threshold = float(settings.tlh_notify_threshold or DEFAULT_TLH_THRESHOLD)
+    excluded = set(settings.tlh_excluded_categories or DEFAULT_TLH_EXCLUSIONS)
 
     # Query enriched holdings for lots
     stmt = select(PortfolioHoldingEnriched).where(
         and_(
             PortfolioHoldingEnriched.user_id == user_id,
             PortfolioHoldingEnriched.holding_type == 'lot',
-            PortfolioHoldingEnriched.category != 'Indvl Company'
         )
     )
     
@@ -27,6 +35,8 @@ def check_and_notify_tlh(db: Session, user_id: str) -> dict:
     total_loss = 0.0
     
     for lot in results:
+        if lot.category in excluded:
+            continue
         if lot.current_price is None or lot.original_purchase_price is None:
             continue
             
@@ -45,7 +55,7 @@ def check_and_notify_tlh(db: Session, user_id: str) -> dict:
                 "loss": lot_loss
             })
             
-    if total_loss >= 1000:
+    if total_loss >= threshold:
         # Prepare email
         subject = f"TLH Alert: ${total_loss:,.2f} in Harvestable Losses Identified"
         

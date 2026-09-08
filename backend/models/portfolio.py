@@ -16,7 +16,7 @@ from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from db.session import Base
-from .enums import LotStatus, TransactionType
+from .enums import LotStatus, TransactionType, AssetType
 
 
 class Lot(Base):
@@ -65,6 +65,9 @@ class AggregatePosition(Base):
     ticker: Mapped[str] = mapped_column(String, index=True, nullable=False)
     quantity: Mapped[float] = mapped_column(Numeric(18, 8), nullable=False)
     cost_basis: Mapped[float | None] = mapped_column(Numeric(18, 2), nullable=True)
+    asset_type: Mapped[AssetType] = mapped_column(
+        Enum(AssetType), nullable=False, default=AssetType.Equity
+    )
     last_updated: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
     )
